@@ -8,6 +8,7 @@
 | `apps/api` | Auth hooks, persistence, promotion, entitlement commits, change-record gates |
 | `packages/rules_engine` | **GoRules Zen adapter**: run JDM, map outputs → effects, honor entitlements, deny-wins, explain, testgen |
 | `apps/kogito` | **Kogito** (parallel): Quarkus + Drools DMN (`LoungeAccess.dmn`); REST at `:8081/LoungeAccess` |
+| `apps/spring-compare` | **Spring Boot bake-off**: calls Zen then Kogito sequentially; latency, decision diff, hot-reload probes |
 | `packages/rules_schema` | Shared JSON Schema for pack envelopes (`domain`/`lifecycle` + JDM `nodes`/`edges`) |
 
 Authoring stays on the shared JDM UI. Runtime evaluation is selectable via `engine: zen | kogito` (UI toggle / request body). Zen evaluates the stored JDM; Kogito evaluates the seeded DMN model (facts mapped by the API adapter).
@@ -20,7 +21,20 @@ flowchart LR
   API --> KogitoClient[kogito HTTP client]
   ZenAdapter --> Zen[GoRules Zen]
   KogitoClient --> KogitoSvc[apps/kogito Quarkus DMN]
+  Spring[apps/spring-compare] --> API
+  Spring --> KogitoSvc
 ```
+
+### Spring compare harness (`apps/spring-compare`)
+
+Port **8082**. Orchestrates existing runtimes (does not embed engines):
+
+1. `POST /v1/compare` — Zen via platform, then Kogito via platform (or `mode=direct-kogito` for Quarkus HTTP)
+2. `POST /v1/compare/benchmark` — sequential iterations with p50/p95 wall timings
+3. `GET /v1/compare/notes` — ease of implementation / execution speed / hot reload notes
+4. `POST /v1/compare/hot-reload/probe` — before/after stamp when editing JDM packs or `LoungeAccess.dmn`
+
+See `apps/spring-compare/README.md`.
 
 ## Rule state — three axes
 
