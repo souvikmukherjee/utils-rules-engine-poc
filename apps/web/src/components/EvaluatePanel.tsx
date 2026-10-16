@@ -81,6 +81,13 @@ export function EvaluatePanel() {
 
   return (
     <div className="space-y-8">
+      <p className="border border-[var(--line)] bg-white/50 px-4 py-3 text-sm text-ink/70">
+        The colour matrix below is the business view of eligibility. The
+        executable <span className="font-medium text-ink">JDM decision graph</span>{" "}
+        (Request → table → Response) lives under{" "}
+        <span className="font-medium text-sea">Author · Graph</span> — open a
+        decision-table node to edit rows like a spreadsheet.
+      </p>
       <FrameworkPanel />
 
       <div className="grid gap-8 lg:grid-cols-2">

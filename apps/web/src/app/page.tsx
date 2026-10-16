@@ -13,7 +13,7 @@ type Tab = "evaluate" | "author" | "simulate" | "releases" | "audit";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "evaluate", label: "Evaluate" },
-  { id: "author", label: "Author" },
+  { id: "author", label: "Author · Graph" },
   { id: "simulate", label: "Simulate" },
   { id: "releases", label: "Releases" },
   { id: "audit", label: "Audit" },
@@ -21,7 +21,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 const TITLES: Record<Tab, string> = {
   evaluate: "Evaluate",
-  author: "Author · JDM",
+  author: "Author · JDM decision graph",
   simulate: "Simulate",
   releases: "Releases & change management",
   audit: "Audit & entitlements",

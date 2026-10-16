@@ -27,17 +27,22 @@ export function JdmEditorClient({ value, onChange, disabled }: Props) {
 
   return (
     <JdmConfigProvider>
-      <div className="jdm-host h-[min(72vh,720px)] min-h-[480px] w-full overflow-hidden rounded-sm border border-[var(--line)] bg-white [&_.grl-dg]:h-full">
-        <DecisionGraph
-          value={graph}
-          onChange={(next) => {
-            onChange({
-              nodes: (next?.nodes ?? []) as JdmNode[],
-              edges: (next?.edges ?? []) as JdmEdge[],
-            });
-          }}
-          disabled={disabled}
-        />
+      <div className="space-y-2">
+        <p className="font-mono text-[11px] uppercase tracking-wider text-ink/45">
+          Graph view · drag nodes · open a decision-table node for the spreadsheet
+        </p>
+        <div className="jdm-host h-[min(78vh,820px)] min-h-[560px] w-full overflow-hidden rounded-sm border border-[var(--line)] bg-white shadow-[inset_0_0_0_1px_rgba(12,26,26,0.04)] [&_.grl-dg]:h-full [&_.react-flow]:h-full">
+          <DecisionGraph
+            value={graph}
+            onChange={(next) => {
+              onChange({
+                nodes: (next?.nodes ?? []) as JdmNode[],
+                edges: (next?.edges ?? []) as JdmEdge[],
+              });
+            }}
+            disabled={disabled}
+          />
+        </div>
       </div>
     </JdmConfigProvider>
   );
