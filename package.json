@@ -1,0 +1,15 @@
+{
+  "name": "utils-rules-engine-poc",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Domain-agnostic rules engine platform — design-time governance, runtime audit",
+  "scripts": {
+    "dev:web": "pnpm --filter @rules/web dev",
+    "build:web": "pnpm --filter @rules/web build",
+    "lint:web": "pnpm --filter @rules/web lint"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

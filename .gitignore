@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+*.egg
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+
+# Env & local data
+.env
+.env.local
+*.db
+*.sqlite
+*.sqlite3
+apps/api/data/
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.cursor/
+
+# Logs / coverage
+*.log
+coverage/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -1,0 +1,19 @@
+[project]
+name = "rules-engine"
+version = "0.1.0"
+description = "Pure Python rules evaluation with temporal windows and decision traces"
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rules_engine"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/rules_engine/samples/lounge_pack.json" = "rules_engine/samples/lounge_pack.json"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]

@@ -1,0 +1,12 @@
+[project]
+name = "utils-rules-engine-poc"
+version = "0.1.0"
+description = "Domain-agnostic rules engine platform"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "httpx>=0.27",
+]
