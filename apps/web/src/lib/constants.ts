@@ -28,23 +28,3 @@ export const LIFECYCLE_TRANSITIONS: Record<
   ],
   published: [{ to: "retired", label: "Retire", roleHint: "admin" }],
 };
-
-export const CONDITION_OPS = [
-  "eq",
-  "neq",
-  "gt",
-  "gte",
-  "lt",
-  "lte",
-  "in",
-  "contains",
-  "exists",
-] as const;
-
-export const EFFECT_TYPES = [
-  "allow",
-  "deny",
-  "grant_access",
-  "set_attribute",
-  "emit_offer",
-] as const;

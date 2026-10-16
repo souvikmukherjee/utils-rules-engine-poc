@@ -108,22 +108,23 @@ class CreatePackVersionRequest(BaseModel):
 
 
 class UpdatePackVersionRequest(BaseModel):
-    """Update a draft. Accepts ``{payload: {...}}`` or a flat pack with ``rules``."""
+    """Update a draft. Accepts ``{payload: {...}}`` or a flat JDM pack (nodes/edges)."""
 
     payload: dict[str, Any] | None = None
     domain: str | None = None
     pack_id: str | None = None
     version: str | None = None
     lifecycle: str | None = None
-    rules: list[dict[str, Any]] | None = None
+    nodes: list[dict[str, Any]] | None = None
+    edges: list[dict[str, Any]] | None = None
     tenant_id: str = "default"
 
     def resolved_payload(self) -> dict[str, Any]:
         if self.payload is not None:
             return self.payload
-        if self.rules is None:
-            raise ValueError("Provide payload or rules")
-        out: dict[str, Any] = {"rules": self.rules}
+        if self.nodes is None or self.edges is None:
+            raise ValueError("Provide payload or JDM nodes+edges")
+        out: dict[str, Any] = {"nodes": self.nodes, "edges": self.edges}
         for key in ("domain", "pack_id", "version", "lifecycle"):
             val = getattr(self, key)
             if val is not None:

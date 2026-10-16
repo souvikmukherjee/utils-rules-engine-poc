@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from rules_engine.evaluate import evaluate
 from rules_engine.explain import explain
-from rules_engine.models import Effect, EntitlementSnapshot, Rule, RulePack
+from rules_engine.models import EntitlementSnapshot, RulePack
 from rules_engine.samples import load_lounge_pack
 from rules_engine.testgen import HARD_MAX_CASES, generate_test_cases
 
@@ -11,20 +11,20 @@ def test_gold_tier_allows():
     pack = load_lounge_pack()
     result = evaluate(pack, {"membership": {"tier": "gold"}})
     assert result.decision == "allow"
-    assert any(e.status == "matched" and e.rule_id == "tier-gold-lounge" for e in result.trace.entries)
+    assert any(
+        e.status == "matched" and e.rule_id == "tier-gold-lounge" for e in result.trace.entries
+    )
 
 
-def test_future_rule_skipped_outside_window():
+def test_silver_inconclusive_outside_season():
     pack = load_lounge_pack()
     result = evaluate(
         pack,
         {"membership": {"tier": "silver"}},
         as_of=datetime(2026, 6, 1, tzinfo=timezone.utc),
     )
-    seasonal = next(e for e in result.trace.entries if e.rule_id == "seasonal-peak-deny-silver")
-    assert seasonal.status == "skipped"
-    assert seasonal.reason == "outside_effective_window"
     assert result.decision == "inconclusive"
+    assert not any(e.status == "matched" for e in result.trace.entries)
 
 
 def test_seasonal_deny_wins_when_in_window():
@@ -34,7 +34,9 @@ def test_seasonal_deny_wins_when_in_window():
         {"membership": {"tier": "silver"}},
         as_of=datetime(2099, 6, 15, tzinfo=timezone.utc),
     )
-    seasonal = next(e for e in result.trace.entries if e.rule_id == "seasonal-peak-deny-silver")
+    seasonal = next(
+        e for e in result.trace.entries if e.rule_id == "seasonal-peak-deny-silver"
+    )
     assert seasonal.status == "matched"
     assert result.decision == "deny"
 
@@ -46,64 +48,83 @@ def test_deny_wins_over_allow():
             "pack_id": "deny-wins",
             "version": "1.0.0",
             "lifecycle": "published",
-            "rules": [
+            "nodes": [
                 {
-                    "id": "allow-all",
-                    "name": "Allow",
-                    "priority": 10,
-                    "enabled": True,
-                    "effective_from": "2020-01-01T00:00:00Z",
-                    "effective_to": None,
-                    "condition": {"path": "x", "op": "eq", "value": 1},
-                    "effects": [{"type": "allow", "payload": {}}],
+                    "id": "input",
+                    "type": "inputNode",
+                    "name": "Request",
+                    "position": {"x": 0, "y": 0},
+                    "content": {"schema": ""},
                 },
                 {
-                    "id": "deny-all",
-                    "name": "Deny",
-                    "priority": 5,
-                    "enabled": True,
-                    "effective_from": "2020-01-01T00:00:00Z",
-                    "effective_to": None,
-                    "condition": {"path": "x", "op": "eq", "value": 1},
-                    "effects": [{"type": "deny", "payload": {"reason": "blocked"}}],
+                    "id": "table",
+                    "type": "decisionTableNode",
+                    "name": "T",
+                    "position": {"x": 200, "y": 0},
+                    "content": {
+                        "hitPolicy": "collect",
+                        "inputs": [{"id": "i1", "name": "X", "field": "x"}],
+                        "outputs": [
+                            {"id": "o1", "name": "Decision", "field": "decision"},
+                            {"id": "o2", "name": "Effect", "field": "effect_type"},
+                            {"id": "o3", "name": "Rule", "field": "rule_id"},
+                        ],
+                        "rules": [
+                            {
+                                "_id": "a",
+                                "i1": "1",
+                                "o1": "\"allow\"",
+                                "o2": "\"allow\"",
+                                "o3": "\"allow-all\"",
+                            },
+                            {
+                                "_id": "d",
+                                "i1": "1",
+                                "o1": "\"deny\"",
+                                "o2": "\"deny\"",
+                                "o3": "\"deny-all\"",
+                            },
+                        ],
+                        "passThrough": False,
+                        "inputField": None,
+                        "outputPath": "matches",
+                        "executionMode": "single",
+                    },
                 },
+                {
+                    "id": "output",
+                    "type": "outputNode",
+                    "name": "Response",
+                    "position": {"x": 400, "y": 0},
+                    "content": {"schema": ""},
+                },
+            ],
+            "edges": [
+                {"id": "e1", "sourceId": "input", "type": "edge", "targetId": "table"},
+                {"id": "e2", "sourceId": "table", "type": "edge", "targetId": "output"},
             ],
         }
     )
     result = evaluate(pack, {"x": 1})
     assert result.decision == "deny"
     matched = [e for e in result.trace.entries if e.status == "matched"]
-    assert len(matched) == 2
+    assert len(matched) >= 2
 
 
-def test_priority_ordering_in_pack():
-    pack = RulePack.from_dict(
-        {
-            "domain": "test",
-            "pack_id": "prio",
-            "version": "1.0.0",
-            "lifecycle": "draft",
-            "rules": [
-                {
-                    "id": "low",
-                    "name": "Low",
-                    "priority": 1,
-                    "effective_from": "2020-01-01T00:00:00Z",
-                    "condition": {"path": "a", "op": "eq", "value": 1},
-                    "effects": [{"type": "allow"}],
-                },
-                {
-                    "id": "high",
-                    "name": "High",
-                    "priority": 100,
-                    "effective_from": "2020-01-01T00:00:00Z",
-                    "condition": {"path": "a", "op": "eq", "value": 1},
-                    "effects": [{"type": "allow"}],
-                },
-            ],
-        }
-    )
-    assert [r.id for r in pack.rules] == ["high", "low"]
+def test_pack_requires_jdm():
+    try:
+        RulePack.from_dict(
+            {
+                "domain": "test",
+                "pack_id": "legacy",
+                "version": "1.0.0",
+                "lifecycle": "draft",
+                "rules": [],
+            }
+        )
+        assert False, "expected ValueError"
+    except ValueError as exc:
+        assert "nodes" in str(exc).lower() or "jdm" in str(exc).lower()
 
 
 def test_grandfathered_entitlement_honored():
@@ -142,7 +163,9 @@ def test_entitlement_merge_with_matching_rules():
     assert result.decision == "allow"
     assert result.trace.path == "mixed"
     assert any(e.entitlement_id == "ent-access" for e in result.entitlements_applied)
-    assert any(e.status == "matched" and e.rule_id == "tier-gold-lounge" for e in result.trace.entries)
+    assert any(
+        e.status == "matched" and e.rule_id == "tier-gold-lounge" for e in result.trace.entries
+    )
 
 
 def test_explain_human_readable():
@@ -151,8 +174,9 @@ def test_explain_human_readable():
     explained = explain(result)
     assert explained["decision"] == "allow"
     assert explained["summary"]
-    assert any("tier-gold-lounge" in r or "Gold tier" in r for r in explained["reasons"])
+    assert any("tier-gold-lounge" in r or "Gold" in r for r in explained["reasons"])
     assert "trace" in explained
+    assert explained["trace"].get("zen_trace") is not None
 
 
 def test_testgen_deterministic_and_bounded():

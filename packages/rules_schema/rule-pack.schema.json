@@ -2,9 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rules.local/schemas/rule-pack.schema.json",
   "title": "RulePackVersion",
+  "description": "Platform governance metadata wrapping a GoRules JSON Decision Model (JDM).",
   "type": "object",
-  "required": ["domain", "pack_id", "version", "lifecycle", "rules"],
-  "additionalProperties": false,
+  "required": ["domain", "pack_id", "version", "lifecycle", "nodes", "edges"],
+  "additionalProperties": true,
   "properties": {
     "domain": { "type": "string", "minLength": 1 },
     "pack_id": { "type": "string", "minLength": 1 },
@@ -13,99 +14,16 @@
       "type": "string",
       "enum": ["draft", "in_review", "approved", "published", "retired"]
     },
-    "rules": {
+    "nodes": {
       "type": "array",
-      "items": { "$ref": "#/$defs/rule" }
-    }
-  },
-  "$defs": {
-    "rule": {
-      "type": "object",
-      "required": ["id", "name", "priority", "effective_from", "condition", "effects"],
-      "additionalProperties": false,
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "priority": { "type": "integer" },
-        "enabled": { "type": "boolean", "default": true },
-        "effective_from": { "type": "string", "format": "date-time" },
-        "effective_to": { "type": ["string", "null"], "format": "date-time" },
-        "condition": { "$ref": "#/$defs/condition" },
-        "effects": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/effect" },
-          "minItems": 1
-        }
-      }
+      "description": "JDM nodes (input, decisionTable, expression, switch, function, output, …)",
+      "minItems": 1,
+      "items": { "type": "object" }
     },
-    "condition": {
-      "oneOf": [
-        {
-          "type": "object",
-          "required": ["all"],
-          "additionalProperties": false,
-          "properties": {
-            "all": {
-              "type": "array",
-              "items": { "$ref": "#/$defs/condition" },
-              "minItems": 1
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": ["any"],
-          "additionalProperties": false,
-          "properties": {
-            "any": {
-              "type": "array",
-              "items": { "$ref": "#/$defs/condition" },
-              "minItems": 1
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": ["not"],
-          "additionalProperties": false,
-          "properties": {
-            "not": { "$ref": "#/$defs/condition" }
-          }
-        },
-        { "$ref": "#/$defs/comparison" }
-      ]
-    },
-    "comparison": {
-      "type": "object",
-      "required": ["path", "op", "value"],
-      "additionalProperties": false,
-      "properties": {
-        "path": { "type": "string", "description": "Dot-path into facts, e.g. membership.tier" },
-        "op": {
-          "type": "string",
-          "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "in", "contains", "exists"]
-        },
-        "value": true
-      }
-    },
-    "effect": {
-      "type": "object",
-      "required": ["type"],
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["allow", "deny", "grant_access", "set_attribute", "emit_offer"]
-        },
-        "payload": { "type": "object" },
-        "persist_as_entitlement": { "type": "boolean", "default": false },
-        "on_pack_change": {
-          "type": "string",
-          "enum": ["honor_existing", "cutover"],
-          "default": "honor_existing"
-        },
-        "benefit_type": { "type": "string" }
-      }
+    "edges": {
+      "type": "array",
+      "description": "JDM edges connecting nodes",
+      "items": { "type": "object" }
     }
   }
 }

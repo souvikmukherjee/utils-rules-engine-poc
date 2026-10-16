@@ -81,31 +81,31 @@ export type PackVersionSummary = {
   lifecycle: string;
 };
 
-export type EffectDraft = {
-  type: string;
-  payload?: Record<string, unknown>;
-  persist_as_entitlement?: boolean;
-  on_pack_change?: string;
-  benefit_type?: string | null;
-};
-
-export type RuleDraft = {
+export type JdmNode = {
   id: string;
-  name: string;
-  priority: number;
-  enabled?: boolean;
-  effective_from: string;
-  effective_to?: string | null;
-  condition: Record<string, unknown>;
-  effects: EffectDraft[];
+  type: string;
+  name?: string;
+  position?: { x: number; y: number };
+  content?: unknown;
+  [key: string]: unknown;
 };
 
+export type JdmEdge = {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  type?: string;
+  [key: string]: unknown;
+};
+
+/** Platform envelope around a GoRules JSON Decision Model. */
 export type RulePack = {
   domain: string;
   pack_id: string;
   version: string;
   lifecycle: string;
-  rules: RuleDraft[];
+  nodes: JdmNode[];
+  edges: JdmEdge[];
 };
 
 export type CreateVersionPayload = {
@@ -129,7 +129,8 @@ type PackVersionApi = {
   version: string;
   lifecycle: string;
   payload?: RulePack | Record<string, unknown>;
-  rules?: RuleDraft[];
+  nodes?: JdmNode[];
+  edges?: JdmEdge[];
 };
 
 function normalizePack(raw: PackVersionApi | RulePack): RulePack {
@@ -137,17 +138,23 @@ function normalizePack(raw: PackVersionApi | RulePack): RulePack {
     raw && typeof raw === "object" && "payload" in raw && raw.payload
       ? (raw.payload as Record<string, unknown>)
       : null;
-  const rules = Array.isArray((raw as RulePack).rules)
-    ? (raw as RulePack).rules
-    : Array.isArray(nested?.rules)
-      ? (nested.rules as RuleDraft[])
+  const nodes = Array.isArray((raw as RulePack).nodes)
+    ? (raw as RulePack).nodes
+    : Array.isArray(nested?.nodes)
+      ? (nested.nodes as JdmNode[])
+      : [];
+  const edges = Array.isArray((raw as RulePack).edges)
+    ? (raw as RulePack).edges
+    : Array.isArray(nested?.edges)
+      ? (nested.edges as JdmEdge[])
       : [];
   return {
     domain: String(raw.domain ?? nested?.domain ?? "lounge"),
     pack_id: String(raw.pack_id ?? nested?.pack_id ?? "lounge-access"),
     version: String(raw.version ?? nested?.version ?? ""),
     lifecycle: String(raw.lifecycle ?? nested?.lifecycle ?? "draft"),
-    rules,
+    nodes,
+    edges,
   };
 }
 

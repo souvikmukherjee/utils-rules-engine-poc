@@ -1,4 +1,4 @@
-"""Domain-agnostic rules engine: evaluate facts with temporal windows and traces."""
+"""Axiom rules adapter: GoRules Zen evaluation + platform entitlements/traces."""
 
 from rules_engine.evaluate import evaluate
 from rules_engine.explain import explain, explain_trace
@@ -7,7 +7,6 @@ from rules_engine.models import (
     DecisionTrace,
     Effect,
     EntitlementSnapshot,
-    Rule,
     RulePack,
     RuleTraceEntry,
 )
@@ -24,7 +23,6 @@ __all__ = [
     "DecisionTrace",
     "Effect",
     "EntitlementSnapshot",
-    "Rule",
     "RulePack",
     "RuleTraceEntry",
     "evaluate",

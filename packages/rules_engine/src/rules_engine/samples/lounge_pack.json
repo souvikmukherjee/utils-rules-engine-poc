@@ -3,112 +3,178 @@
   "pack_id": "lounge-access",
   "version": "1.0.0",
   "lifecycle": "published",
-  "rules": [
+  "nodes": [
     {
-      "id": "tier-gold-lounge",
-      "name": "Gold tier members get lounge access",
-      "priority": 100,
-      "enabled": true,
-      "effective_from": "2024-01-01T00:00:00Z",
-      "effective_to": null,
-      "condition": {
-        "path": "membership.tier",
-        "op": "in",
-        "value": ["gold", "platinum", "diamond"]
-      },
-      "effects": [
-        {
-          "type": "allow",
-          "payload": { "lounge_class": "domestic" },
-          "persist_as_entitlement": false
-        },
-        {
-          "type": "grant_access",
-          "payload": { "lounge_class": "domestic" },
-          "persist_as_entitlement": true,
-          "on_pack_change": "honor_existing",
-          "benefit_type": "lounge_access"
-        }
-      ]
+      "id": "input",
+      "type": "inputNode",
+      "name": "Request",
+      "position": { "x": 80, "y": 220 },
+      "content": { "schema": "" }
     },
     {
-      "id": "partner-elite-access",
-      "name": "Partner airline elite status grants access",
-      "priority": 90,
-      "enabled": true,
-      "effective_from": "2024-01-01T00:00:00Z",
-      "effective_to": null,
-      "condition": {
-        "all": [
-          { "path": "partner.airline", "op": "exists", "value": true },
+      "id": "eligibility",
+      "type": "decisionTableNode",
+      "name": "Lounge eligibility",
+      "position": { "x": 360, "y": 220 },
+      "content": {
+        "hitPolicy": "collect",
+        "inputs": [
+          { "id": "i1", "name": "Tier", "field": "membership.tier" },
+          { "id": "i2", "name": "Partner elite", "field": "partner.elite_tier" },
+          { "id": "i3", "name": "Companion eligible", "field": "membership.companion_eligible" },
+          { "id": "i4", "name": "As of", "field": "as_of" }
+        ],
+        "outputs": [
+          { "id": "o1", "name": "Decision", "field": "decision" },
+          { "id": "o2", "name": "Effect type", "field": "effect_type" },
+          { "id": "o3", "name": "Lounge class", "field": "lounge_class" },
+          { "id": "o4", "name": "Benefit type", "field": "benefit_type" },
+          { "id": "o5", "name": "Persist entitlement", "field": "persist_as_entitlement" },
+          { "id": "o6", "name": "Reason", "field": "reason" },
+          { "id": "o7", "name": "Companions", "field": "companions_allowed" },
+          { "id": "o8", "name": "Rule id", "field": "rule_id" },
+          { "id": "o9", "name": "Via", "field": "via" }
+        ],
+        "rules": [
           {
-            "path": "partner.elite_tier",
-            "op": "in",
-            "value": ["gold", "platinum", "first"]
-          }
-        ]
-      },
-      "effects": [
-        {
-          "type": "allow",
-          "payload": { "reason": "partner_elite" },
-          "persist_as_entitlement": false
-        },
-        {
-          "type": "grant_access",
-          "payload": { "lounge_class": "domestic", "via": "partner" },
-          "persist_as_entitlement": true,
-          "on_pack_change": "honor_existing",
-          "benefit_type": "lounge_access"
-        }
-      ]
-    },
-    {
-      "id": "companion-plus-one",
-      "name": "Eligible members may bring one companion",
-      "priority": 80,
-      "enabled": true,
-      "effective_from": "2024-01-01T00:00:00Z",
-      "effective_to": null,
-      "condition": {
-        "any": [
-          {
-            "path": "membership.tier",
-            "op": "in",
-            "value": ["platinum", "diamond"]
+            "_id": "tier-gold-lounge",
+            "i1": "'gold', 'platinum', 'diamond'",
+            "i2": "",
+            "i3": "",
+            "i4": "",
+            "o1": "\"allow\"",
+            "o2": "\"allow\"",
+            "o3": "\"domestic\"",
+            "o4": "null",
+            "o5": "false",
+            "o6": "\"tier_access\"",
+            "o7": "null",
+            "o8": "\"tier-gold-lounge\"",
+            "o9": "null"
           },
-          { "path": "membership.companion_eligible", "op": "eq", "value": true }
-        ]
-      },
-      "effects": [
-        {
-          "type": "grant_access",
-          "payload": { "companions_allowed": 1 },
-          "persist_as_entitlement": true,
-          "on_pack_change": "honor_existing",
-          "benefit_type": "companion_pass"
-        }
-      ]
+          {
+            "_id": "tier-gold-grant",
+            "i1": "'gold', 'platinum', 'diamond'",
+            "i2": "",
+            "i3": "",
+            "i4": "",
+            "o1": "\"allow\"",
+            "o2": "\"grant_access\"",
+            "o3": "\"domestic\"",
+            "o4": "\"lounge_access\"",
+            "o5": "true",
+            "o6": "\"tier_access\"",
+            "o7": "null",
+            "o8": "\"tier-gold-lounge\"",
+            "o9": "null"
+          },
+          {
+            "_id": "partner-elite-allow",
+            "i1": "",
+            "i2": "'gold', 'platinum', 'first'",
+            "i3": "",
+            "i4": "",
+            "o1": "\"allow\"",
+            "o2": "\"allow\"",
+            "o3": "\"domestic\"",
+            "o4": "null",
+            "o5": "false",
+            "o6": "\"partner_elite\"",
+            "o7": "null",
+            "o8": "\"partner-elite-access\"",
+            "o9": "\"partner\""
+          },
+          {
+            "_id": "partner-elite-grant",
+            "i1": "",
+            "i2": "'gold', 'platinum', 'first'",
+            "i3": "",
+            "i4": "",
+            "o1": "\"allow\"",
+            "o2": "\"grant_access\"",
+            "o3": "\"domestic\"",
+            "o4": "\"lounge_access\"",
+            "o5": "true",
+            "o6": "\"partner_elite\"",
+            "o7": "null",
+            "o8": "\"partner-elite-access\"",
+            "o9": "\"partner\""
+          },
+          {
+            "_id": "companion-tier",
+            "i1": "'platinum', 'diamond'",
+            "i2": "",
+            "i3": "",
+            "i4": "",
+            "o1": "\"allow\"",
+            "o2": "\"grant_access\"",
+            "o3": "null",
+            "o4": "\"companion_pass\"",
+            "o5": "true",
+            "o6": "\"companion\"",
+            "o7": "1",
+            "o8": "\"companion-plus-one\"",
+            "o9": "null"
+          },
+          {
+            "_id": "companion-flag",
+            "i1": "not in ['platinum', 'diamond']",
+            "i2": "",
+            "i3": "true",
+            "i4": "",
+            "o1": "\"allow\"",
+            "o2": "\"grant_access\"",
+            "o3": "null",
+            "o4": "\"companion_pass\"",
+            "o5": "true",
+            "o6": "\"companion\"",
+            "o7": "1",
+            "o8": "\"companion-plus-one\"",
+            "o9": "null"
+          },
+          {
+            "_id": "seasonal-peak-deny-silver",
+            "i1": "'silver'",
+            "i2": "",
+            "i3": "",
+            "i4": ">= date('2099-01-01') and < date('2100-01-01')",
+            "o1": "\"deny\"",
+            "o2": "\"deny\"",
+            "o3": "null",
+            "o4": "null",
+            "o5": "false",
+            "o6": "\"peak_season_restriction\"",
+            "o7": "null",
+            "o8": "\"seasonal-peak-deny-silver\"",
+            "o9": "null"
+          }
+        ],
+        "passThrough": false,
+        "inputField": null,
+        "outputPath": "matches",
+        "executionMode": "single"
+      }
     },
     {
-      "id": "seasonal-peak-deny-silver",
-      "name": "Seasonal: silver blocked during peak (starts in the future)",
-      "priority": 200,
-      "enabled": true,
-      "effective_from": "2099-01-01T00:00:00Z",
-      "effective_to": "2099-12-31T23:59:59Z",
-      "condition": {
-        "path": "membership.tier",
-        "op": "eq",
-        "value": "silver"
-      },
-      "effects": [
-        {
-          "type": "deny",
-          "payload": { "reason": "peak_season_restriction" },
-          "persist_as_entitlement": false
-        }
-      ]
+      "id": "output",
+      "type": "outputNode",
+      "name": "Response",
+      "position": { "x": 720, "y": 220 },
+      "content": { "schema": "" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-input-eligibility",
+      "sourceId": "input",
+      "type": "edge",
+      "targetId": "eligibility"
+    },
+    {
+      "id": "e-eligibility-output",
+      "sourceId": "eligibility",
+      "type": "edge",
+      "targetId": "output"
     }
   ]
 }

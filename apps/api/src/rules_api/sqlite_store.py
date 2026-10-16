@@ -95,6 +95,8 @@ class SqliteRulesStore(RulesStore):
                 (tenant_id, domain, pack_id, version, lifecycle, dumps(payload)),
             )
 
+        # Legacy `rules` rows were tied to the custom IR. Packs are now JDM envelopes;
+        # clear any stale denormalized rows for this version.
         self.conn.execute(
             """
             DELETE FROM rules
@@ -102,29 +104,6 @@ class SqliteRulesStore(RulesStore):
             """,
             (tenant_id, domain, pack_id, version),
         )
-        for rule in payload.get("rules") or []:
-            self.conn.execute(
-                """
-                INSERT INTO rules (
-                    tenant_id, domain, pack_id, pack_version, rule_id, name, priority,
-                    enabled, effective_from, effective_to, condition_json, effects_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    tenant_id,
-                    domain,
-                    pack_id,
-                    version,
-                    rule["id"],
-                    rule["name"],
-                    int(rule.get("priority", 0)),
-                    1 if rule.get("enabled", True) else 0,
-                    rule["effective_from"],
-                    rule.get("effective_to"),
-                    dumps(rule["condition"]),
-                    dumps(rule["effects"]),
-                ),
-            )
 
     def update_pack_lifecycle(
         self,

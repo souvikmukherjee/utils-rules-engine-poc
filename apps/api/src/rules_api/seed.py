@@ -12,33 +12,25 @@ def seed_lounge(conn: sqlite3.Connection, *, tenant_id: str = DEFAULT_TENANT_ID)
     pack = load_lounge_pack()
     existing = conn.execute(
         """
-        SELECT 1 FROM rule_pack_versions
+        SELECT payload_json FROM rule_pack_versions
         WHERE tenant_id=? AND domain=? AND pack_id=? AND version=?
         """,
         (tenant_id, pack.domain, pack.pack_id, pack.version),
     ).fetchone()
     if existing:
-        return
+        import json
+        existing_payload = json.loads(existing[0])
+        if "nodes" in existing_payload and "edges" in existing_payload:
+            return
+        conn.execute(
+            """
+            DELETE FROM rule_pack_versions
+            WHERE tenant_id=? AND domain=? AND pack_id=? AND version=?
+            """,
+            (tenant_id, pack.domain, pack.pack_id, pack.version),
+        )
 
-    payload = {
-        "domain": pack.domain,
-        "pack_id": pack.pack_id,
-        "version": pack.version,
-        "lifecycle": pack.lifecycle,
-        "rules": [
-            {
-                "id": r.id,
-                "name": r.name,
-                "priority": r.priority,
-                "enabled": r.enabled,
-                "effective_from": r.effective_from.isoformat(),
-                "effective_to": r.effective_to.isoformat() if r.effective_to else None,
-                "condition": r.condition,
-                "effects": [e.to_dict() for e in r.effects],
-            }
-            for r in pack.rules
-        ],
-    }
+    payload = pack.to_dict()
 
     conn.execute(
         """
@@ -48,30 +40,6 @@ def seed_lounge(conn: sqlite3.Connection, *, tenant_id: str = DEFAULT_TENANT_ID)
         """,
         (tenant_id, pack.domain, pack.pack_id, pack.version, pack.lifecycle, dumps(payload)),
     )
-
-    for rule in pack.rules:
-        conn.execute(
-            """
-            INSERT INTO rules (
-                tenant_id, domain, pack_id, pack_version, rule_id, name, priority, enabled,
-                effective_from, effective_to, condition_json, effects_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                tenant_id,
-                pack.domain,
-                pack.pack_id,
-                pack.version,
-                rule.id,
-                rule.name,
-                rule.priority,
-                1 if rule.enabled else 0,
-                rule.effective_from.isoformat(),
-                rule.effective_to.isoformat() if rule.effective_to else None,
-                dumps(rule.condition),
-                dumps([e.to_dict() for e in rule.effects]),
-            ),
-        )
 
     conn.execute(
         """

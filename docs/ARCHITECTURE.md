@@ -4,14 +4,25 @@
 
 | Layer | Responsibility |
 |-------|----------------|
-| `apps/web` | Authoring / sim / audit UX — never embeds eval logic |
-| `apps/api` | Auth hooks, persistence, promotion, entitlement commits |
-| `packages/rules_engine` | Pure evaluate: temporal filter, conditions, effects, traces, explain, testgen |
-| `packages/rules_schema` | Shared JSON Schema for rule packs |
+| `apps/web` | Authoring (GoRules JDM Editor), simulation, releases, audit UX — never embeds production eval logic |
+| `apps/api` | Auth hooks, persistence, promotion, entitlement commits, change-record gates |
+| `packages/rules_engine` | **GoRules Zen adapter**: run JDM, map outputs → effects, honor entitlements, deny-wins, explain, testgen |
+| `packages/rules_schema` | Shared JSON Schema for pack envelopes (`domain`/`lifecycle` + JDM `nodes`/`edges`) |
+
+We do **not** build a custom rules interpreter. Evaluation is [GoRules Zen](https://docs.gorules.io/developers/sdks/python) against the [JSON Decision Model](https://docs.gorules.io/developers/jdm/standard). Axiom owns the product surface around it.
+
+```mermaid
+flowchart LR
+  UI[Axiom UI / JDM Editor] --> API[FastAPI platform]
+  API --> Store[(Pack versions / releases / entitlements / audit)]
+  API --> Adapter[rules_engine Zen adapter]
+  Adapter --> Zen[GoRules Zen]
+  Adapter --> Ent[Entitlement honor + deny-wins]
+```
 
 ## Rule state — three axes
 
-### 1. Lifecycle (governance)
+### 1. Lifecycle (governance) — platform
 
 On **RulePackVersion** / **Release**: `draft` → `in_review` → `approved` → `published` → `retired`.
 
@@ -19,31 +30,52 @@ Published versions are **immutable**. Edits create a new version.
 
 Transition to `published` (and production promote) requires a `change_record_id`.
 
-### 2. Temporal window
+### 2. Temporal window — modeled in JDM
 
-On each **Rule** (and optionally **Release**):
+Pass `as_of` into the Zen context as a Unix timestamp. Decision-table (or expression) cells compare against `date('…')` unary expressions, e.g. `>= date('2099-01-01') and < date('2100-01-01')`.
 
-- `effective_from` (required once published)
-- `effective_to` (optional; open-ended if null)
-- Evaluation clock: `as_of` (default now; simulation may override)
-
-A rule is a candidate only if `effective_from <= as_of < effective_to` (or no end). Otherwise the trace records `skipped_reason: outside_effective_window`.
-
-### 3. Entitlement ledger (grandfathering)
+### 3. Entitlement ledger (grandfathering) — platform
 
 Do **not** keep retired rule text alive for special subjects.
 
-When an effect grants something durable (`persist_as_entitlement: true`), the API appends an **Entitlement** row. Later evaluations honor active entitlements before (or alongside) current pack rules.
+When a mapped effect has `persist_as_entitlement: true`, the API appends an **Entitlement** row. Later evaluations honor active entitlements before (or alongside) the current JDM result.
 
 Default promote policy: **cutover** for new subjects; **honor existing entitlements** for holders.
+
+## Pack payload (JDM envelope)
+
+```json
+{
+  "domain": "lounge",
+  "pack_id": "lounge-access",
+  "version": "1.0.0",
+  "lifecycle": "published",
+  "nodes": [ /* JDM */ ],
+  "edges": [ /* JDM */ ]
+}
+```
+
+Only `nodes` and `edges` are passed to Zen. Platform fields travel with the stored version for governance.
+
+### Effect mapping convention
+
+Lounge (and similar) decision tables use `hitPolicy: collect` with `outputPath: "matches"`. Each matched row may include:
+
+| Field | Role |
+|-------|------|
+| `decision` / `effect_type` | `allow` \| `deny` \| `grant_access` \| … |
+| `benefit_type` | Ledger benefit when persisting |
+| `persist_as_entitlement` | Commit to entitlement ledger |
+| `rule_id` | Trace / audit identity |
+| `lounge_class`, `reason`, `companions_allowed`, `via` | Effect payload |
 
 ## Evaluate order
 
 1. Resolve release for environment; if `canary_percent < 100` and `canary_version` is set, stable-hash `subject_id` into a 0–99 bucket and pick canary vs production version
 2. Load active entitlements for `subject_id` as of `as_of` (scoped by `tenant_id`)
 3. If an entitlement covers the decision → trace `entitlement_honored`
-4. Evaluate current pack (temporally filtered; priority order)
-5. Conflict policy: collect matching effects; **deny-wins**
+4. Evaluate pack JDM with Zen (`trace: true`); inject `as_of` timestamp into context
+5. Map collected matches → effects; **deny-wins** with entitlement effects
 6. If grant effects fire and `commit_entitlements` → append ledger rows
 
 ## Conflict policy (v1)
@@ -56,7 +88,7 @@ Persistence is behind `RulesStore` (`apps/api/src/rules_api/store.py`). Default 
 
 | Store | Mutability | Contents |
 |-------|------------|----------|
-| Pack definitions | Append versions | Rules, windows, priorities, effects |
+| Pack definitions | Append versions | JDM envelope (nodes/edges + lifecycle) |
 | Release pointers | Updated on promote | Which pack serves env / canary % / canary_version |
 | Entitlement ledger | Append + status transitions | Subject-bound grants |
 | Audit | Append-only | Every evaluation + path taken |

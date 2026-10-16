@@ -2,7 +2,7 @@
   "name": "utils-rules-engine-poc",
   "private": true,
   "version": "0.1.0",
-  "description": "Domain-agnostic rules engine platform — design-time governance, runtime audit",
+  "description": "Axiom — GoRules Zen + JDM platform (author, simulate, change management, grandfather)",
   "scripts": {
     "dev:web": "pnpm --filter @rules/web dev",
     "build:web": "pnpm --filter @rules/web build",
