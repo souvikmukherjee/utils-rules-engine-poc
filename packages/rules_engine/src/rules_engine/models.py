@@ -146,6 +146,7 @@ class DecisionTrace:
     engine: str = "zen"
     zen_trace: dict[str, Any] | None = None
     zen_performance: str | None = None
+    engine_detail: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         body: dict[str, Any] = {
@@ -160,6 +161,8 @@ class DecisionTrace:
             body["zen_trace"] = self.zen_trace
         if self.zen_performance is not None:
             body["zen_performance"] = self.zen_performance
+        if self.engine_detail is not None:
+            body["engine_detail"] = self.engine_detail
         return body
 
 

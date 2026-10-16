@@ -22,7 +22,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Axiom — Decision Platform",
   description:
-    "Author JSON Decision Models; evaluate with GoRules Zen or Cogito; simulate, promote, grandfather, and audit every decision.",
+    "Author JSON Decision Models; evaluate with GoRules Zen or Kogito DMN; simulate, promote, grandfather, and audit every decision.",
 };
 
 export default function RootLayout({

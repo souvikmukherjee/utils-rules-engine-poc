@@ -25,7 +25,7 @@ function readStored(): RulesEngine {
   if (typeof window === "undefined") return "zen";
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw === "cogito" || raw === "zen") return raw;
+    if (raw === "kogito" || raw === "zen") return raw;
   } catch {
     /* ignore */
   }

@@ -5,7 +5,7 @@
  */
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "/api").replace(/\/$/, "");
 
-export type RulesEngine = "zen" | "cogito";
+export type RulesEngine = "zen" | "kogito";
 
 /** Active runtime engine; synced from EngineProvider so API calls redirect. */
 let activeEngine: RulesEngine = "zen";

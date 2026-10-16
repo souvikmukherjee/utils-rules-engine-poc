@@ -1,7 +1,7 @@
-"""Engine dispatch: Zen (GoRules) vs Cogito (native condition-IR).
+"""Engine dispatch: Zen (GoRules) vs Kogito (Red Hat / Apache KIE DMN).
 
-Packs are authored as JDM in the shared UI. Cogito compiles decision tables
-into condition-IR at evaluation time.
+Packs are authored as JDM in the shared UI. When the toggle is Kogito,
+runtime evaluation is redirected to the Quarkus DMN service in apps/kogito.
 """
 
 from __future__ import annotations
@@ -19,45 +19,20 @@ from rules_engine import evaluate as zen_evaluate
 from rules_engine import explain as zen_explain
 from rules_engine import generate_test_cases as zen_testgen
 
-EngineName = Literal["zen", "cogito"]
-ENGINES: frozenset[str] = frozenset({"zen", "cogito"})
+EngineName = Literal["zen", "kogito"]
+ENGINES: frozenset[str] = frozenset({"zen", "kogito"})
 
 
 def normalize_engine(value: str | None) -> EngineName:
     if not value:
         return "zen"
     key = value.strip().lower()
+    # Accept legacy typo from earlier PoC naming.
+    if key == "cogito":
+        key = "kogito"
     if key not in ENGINES:
-        raise ValueError(f"Unknown engine '{value}'; expected zen or cogito")
+        raise ValueError(f"Unknown engine '{value}'; expected zen or kogito")
     return key  # type: ignore[return-value]
-
-
-def _to_cogito_ents(
-    entitlements: list[ZenEntitlement],
-) -> list[Any]:
-    from cogito_engine import EntitlementSnapshot as CogitoEnt
-
-    return [
-        CogitoEnt(
-            entitlement_id=e.entitlement_id,
-            benefit_type=e.benefit_type,
-            benefit_payload=dict(e.benefit_payload),
-            grandfathered=e.grandfathered,
-            source_rule_id=e.source_rule_id,
-            source_pack_version=e.source_pack_version,
-        )
-        for e in entitlements
-    ]
-
-
-def _from_cogito_result(result: Any) -> Any:
-    """Adapt Cogito DecisionResult into the Zen-shaped objects the API already uses.
-
-    The API only needs duck-typed attributes: decision, effects (with to_dict /
-    persist_as_entitlement / benefit_type / payload / type), entitlements_*,
-    trace (path, to_dict), pack_version.
-    """
-    return result
 
 
 def evaluate_with_engine(
@@ -71,17 +46,13 @@ def evaluate_with_engine(
     if engine == "zen":
         return zen_evaluate(pack, facts, as_of=as_of, entitlements=entitlements)
 
-    from cogito_engine import evaluate as cogito_evaluate
-    from cogito_engine import jdm_to_cogito_pack
+    from rules_api.kogito_client import evaluate_via_kogito
 
-    cogito_pack = jdm_to_cogito_pack(pack.to_dict())
-    return _from_cogito_result(
-        cogito_evaluate(
-            cogito_pack,
-            facts,
-            as_of=as_of,
-            entitlements=_to_cogito_ents(entitlements),
-        )
+    return evaluate_via_kogito(
+        facts,
+        as_of=as_of,
+        entitlements=entitlements,
+        pack_version=pack.version,
     )
 
 
@@ -99,9 +70,9 @@ def explain_with_engine(
     if engine == "zen":
         body = zen_explain(result)
     else:
-        from cogito_engine import explain as cogito_explain
+        from rules_api.kogito_client import explain_kogito
 
-        body = cogito_explain(result)
+        body = explain_kogito(result)
     body["engine"] = engine
     return body
 
@@ -115,9 +86,52 @@ def testgen_with_engine(
     if engine == "zen":
         body = zen_testgen(pack, max_cases=max_cases)
     else:
-        from cogito_engine import generate_test_cases as cogito_testgen
-        from cogito_engine import jdm_to_cogito_pack
-
-        body = cogito_testgen(jdm_to_cogito_pack(pack.to_dict()), max_cases=max_cases)
+        # Kogito DMN is seeded separately; emit a small fixed fixture set that
+        # exercises the lounge decision table.
+        limit = 50 if max_cases is None else max(1, min(int(max_cases), 500))
+        cases = [
+            {
+                "subject_id": "case-0001",
+                "facts": {"membership": {"tier": "gold"}},
+                "label": "gold_tier",
+            },
+            {
+                "subject_id": "case-0002",
+                "facts": {"membership": {"tier": "silver"}},
+                "label": "silver_no_access",
+            },
+            {
+                "subject_id": "case-0003",
+                "facts": {
+                    "membership": {"tier": "silver"},
+                    "partner": {"airline": "Qantas", "elite_tier": "gold"},
+                },
+                "label": "partner_elite",
+            },
+            {
+                "subject_id": "case-0004",
+                "facts": {"membership": {"tier": "silver"}},
+                "as_of": "2099-06-15T00:00:00Z",
+                "label": "seasonal_deny",
+            },
+            {
+                "subject_id": "case-0005",
+                "facts": {
+                    "membership": {"tier": "bronze", "companion_eligible": True}
+                },
+                "label": "companion_flag",
+            },
+        ][:limit]
+        body = {
+            "domain": pack.domain,
+            "pack_id": pack.pack_id,
+            "version": pack.version,
+            "max_cases": limit,
+            "hard_max_cases": 500,
+            "paths": ["membership.tier", "partner.elite_tier"],
+            "truncated": False,
+            "case_count": len(cases),
+            "cases": cases,
+        }
     body["engine"] = engine
     return body

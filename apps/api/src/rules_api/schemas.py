@@ -14,7 +14,7 @@ class EvaluateRequest(BaseModel):
     commit_entitlements: bool = False
     pack_id: str = "lounge-access"
     tenant_id: str = "default"
-    engine: Literal["zen", "cogito"] = "zen"
+    engine: Literal["zen", "kogito"] = "zen"
 
 
 class EvaluateResponse(BaseModel):
@@ -27,7 +27,7 @@ class EvaluateResponse(BaseModel):
     pack_version: str
     tenant_id: str = "default"
     canary: bool = False
-    engine: Literal["zen", "cogito"] = "zen"
+    engine: Literal["zen", "kogito"] = "zen"
 
 
 class ExplainRequest(EvaluateRequest):
@@ -46,7 +46,7 @@ class ExplainResponse(BaseModel):
     entitlements_applied: list[dict[str, Any]]
     trace: dict[str, Any]
     tenant_id: str = "default"
-    engine: Literal["zen", "cogito"] = "zen"
+    engine: Literal["zen", "kogito"] = "zen"
 
 
 class SimulateFixture(BaseModel):
@@ -63,7 +63,7 @@ class SimulateRequest(BaseModel):
     compare_to_version: str | None = None
     tenant_id: str = "default"
     environment: str = "production"
-    engine: Literal["zen", "cogito"] = "zen"
+    engine: Literal["zen", "kogito"] = "zen"
 
 
 class TestgenRequest(BaseModel):
@@ -77,7 +77,7 @@ class TestgenRequest(BaseModel):
         le=500,
     )
     tenant_id: str = "default"
-    engine: Literal["zen", "cogito"] = "zen"
+    engine: Literal["zen", "kogito"] = "zen"
 
 
 class PromoteRequest(BaseModel):

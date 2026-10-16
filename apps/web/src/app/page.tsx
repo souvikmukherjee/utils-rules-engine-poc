@@ -45,7 +45,7 @@ export default function Home() {
         <div className="flex flex-wrap items-center justify-end gap-3">
           <EngineToggle />
           <p className="animate-pulse-soft font-mono text-xs uppercase tracking-[0.2em] text-sea">
-            {engine === "cogito" ? "Cogito" : "Zen"} · JDM · Lounge PoC
+            {engine === "kogito" ? "Kogito" : "Zen"} · JDM · Lounge PoC
           </p>
         </div>
       </header>
@@ -58,7 +58,7 @@ export default function Home() {
             Axiom
           </h1>
           <p className="animate-rise-delay mt-4 max-w-md text-lg leading-relaxed text-ink/70">
-            Same authoring UI — toggle Zen or Cogito to redirect evaluation,
+            Same authoring UI — toggle Zen or Kogito to redirect evaluation,
             simulation, and testgen.
           </p>
           <div className="mt-8 flex flex-wrap gap-2">

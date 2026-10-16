@@ -7,20 +7,19 @@
 | `apps/web` | Authoring (GoRules JDM Editor), simulation, releases, audit UX — never embeds production eval logic |
 | `apps/api` | Auth hooks, persistence, promotion, entitlement commits, change-record gates |
 | `packages/rules_engine` | **GoRules Zen adapter**: run JDM, map outputs → effects, honor entitlements, deny-wins, explain, testgen |
-| `packages/cogito_engine` | **Cogito** (parallel): native condition-IR evaluator + JDM→IR bridge; same platform effects/entitlement policy |
+| `apps/kogito` | **Kogito** (parallel): Quarkus + Drools DMN (`LoungeAccess.dmn`); REST at `:8081/LoungeAccess` |
 | `packages/rules_schema` | Shared JSON Schema for pack envelopes (`domain`/`lifecycle` + JDM `nodes`/`edges`) |
 
-Authoring is always JDM. Runtime evaluation is selectable via `engine: zen | cogito` (UI toggle / request body). Zen runs JDM directly; Cogito compiles decision-table rows into condition IR, then evaluates.
+Authoring stays on the shared JDM UI. Runtime evaluation is selectable via `engine: zen | kogito` (UI toggle / request body). Zen evaluates the stored JDM; Kogito evaluates the seeded DMN model (facts mapped by the API adapter).
 
 ```mermaid
 flowchart LR
   UI[Axiom UI / JDM Editor] --> API[FastAPI platform]
   API --> Store[(Pack versions / releases / entitlements / audit)]
   API --> ZenAdapter[rules_engine Zen]
-  API --> Cogito[cogito_engine]
+  API --> KogitoClient[kogito HTTP client]
   ZenAdapter --> Zen[GoRules Zen]
-  Cogito --> Bridge[JDM to IR bridge]
-  Bridge --> IR[Condition IR]
+  KogitoClient --> KogitoSvc[apps/kogito Quarkus DMN]
 ```
 
 ## Rule state — three axes

@@ -111,6 +111,8 @@ def evaluate_endpoint(body: EvaluateRequest) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.post("/v1/explain", response_model=ExplainResponse)
@@ -132,6 +134,8 @@ def explain_endpoint(body: ExplainRequest) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.post("/v1/simulate")
@@ -153,6 +157,8 @@ def simulate_endpoint(body: SimulateRequest) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.post("/v1/testgen")
@@ -172,6 +178,8 @@ def testgen_endpoint(body: TestgenRequest) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get("/v1/entitlements", response_model=list[EntitlementOut])

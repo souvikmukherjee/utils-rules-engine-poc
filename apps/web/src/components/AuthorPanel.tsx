@@ -253,7 +253,7 @@ export function AuthorPanel() {
             </h3>
             <p className="text-xs text-ink/50">
               Powered by GoRules JDM Editor · evaluated by{" "}
-              {engine === "cogito" ? "Cogito" : "Zen"}
+              {engine === "kogito" ? "Kogito" : "Zen"}
             </p>
           </div>
           <JdmEditor

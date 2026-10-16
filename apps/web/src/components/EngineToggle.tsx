@@ -4,7 +4,7 @@ import { useEngine, type RulesEngine } from "@/lib/engine";
 
 const OPTIONS: { id: RulesEngine; label: string; hint: string }[] = [
   { id: "zen", label: "Zen", hint: "GoRules" },
-  { id: "cogito", label: "Cogito", hint: "Native IR" },
+  { id: "kogito", label: "Kogito", hint: "DMN · Red Hat / KIE" },
 ];
 
 export function EngineToggle() {

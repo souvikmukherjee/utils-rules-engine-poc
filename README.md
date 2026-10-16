@@ -1,16 +1,16 @@
 # Axiom — Rules Platform (PoC)
 
-Domain-agnostic decision platform: business users author versioned **JSON Decision Models (JDM)**; evaluation runs on **[GoRules Zen](https://docs.gorules.io/)** or the parallel **Cogito** condition-IR engine (UI toggle). Axiom adds change management, simulation, grandfathering, canary, and searchable audit.
+Domain-agnostic decision platform: business users author versioned **JSON Decision Models (JDM)**; evaluation runs on **[GoRules Zen](https://docs.gorules.io/)** or parallel **[Kogito](https://kie.apache.org/docs/)** (DMN on Quarkus — UI toggle). Axiom adds change management, simulation, grandfathering, canary, and searchable audit.
 
 ## Monorepo layout
 
 ```
 apps/
   web/              Next.js — Axiom UI + embedded GoRules JDM Editor + engine toggle
-  api/              FastAPI — design-time + runtime APIs (`engine: zen|cogito`)
+  api/              FastAPI — design-time + runtime APIs (`engine: zen|kogito`)
+  kogito/           Quarkus + drools-quarkus-decisions — LoungeAccess DMN service :8081
 packages/
   rules_engine/     Zen adapter: evaluate / entitlements / explain / testgen
-  cogito_engine/    Cogito: condition-IR evaluator + JDM→IR bridge
   rules_schema/     Pack envelope schema (platform metadata + JDM)
 docs/
   PRODUCT.md
@@ -21,19 +21,22 @@ docs/
 
 - Node.js 20+ and [pnpm](https://pnpm.io/)
 - Python 3.11+ (venv recommended)
+- Java 17+ and Maven 3.9+ (for the parallel **Kogito** DMN service)
 
 ## Quick start
 
 ```bash
-make install-py    # venv + engine + API (+ zen-engine)
+make install-py    # venv + Zen engine + API
 make install-web   # pnpm deps for Next.js (+ @gorules/jdm-editor)
+make install-kogito  # package apps/kogito Quarkus service
 ```
 
-In two terminals:
+In three terminals:
 
 ```bash
+make kogito        # http://localhost:8081  (Kogito LoungeAccess DMN)
 make api           # http://localhost:8000  (OpenAPI at /docs)
-make web           # http://localhost:3000  (Axiom UI)
+make web           # http://localhost:3000  (Axiom UI — toggle Zen | Kogito)
 ```
 
 Or manually:
