@@ -143,7 +143,8 @@ def test_pack_crud_and_transition_rbac(client: TestClient):
     )
     assert denied.status_code == 403
 
-    # Author can submit draft → in_review and save flat/wrapped payloads
+    # Author can submit draft → in_review and save JDM envelope payloads
+    payload = created.json()["payload"]
     put_flat = client.put(
         "/v1/packs/lounge/lounge-access/versions/2.0.0",
         json={
@@ -151,7 +152,8 @@ def test_pack_crud_and_transition_rbac(client: TestClient):
             "pack_id": "lounge-access",
             "version": "2.0.0",
             "lifecycle": "draft",
-            "rules": created.json()["payload"]["rules"],
+            "nodes": payload["nodes"],
+            "edges": payload["edges"],
         },
         headers={"X-Role": "author"},
     )

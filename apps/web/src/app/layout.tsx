@@ -19,9 +19,9 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Axiom — Rules Platform",
+  title: "Axiom — Zen Decision Platform",
   description:
-    "Domain-agnostic rules: author, simulate, evaluate, and audit every decision.",
+    "Author JSON Decision Models on GoRules Zen; simulate, promote, grandfather, and audit every decision.",
 };
 
 export default function RootLayout({

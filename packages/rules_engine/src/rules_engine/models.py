@@ -26,6 +26,7 @@ class Effect:
     persist_as_entitlement: bool = False
     on_pack_change: str = "honor_existing"
     benefit_type: str | None = None
+    source_rule_id: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Effect:
@@ -35,6 +36,7 @@ class Effect:
             persist_as_entitlement=bool(data.get("persist_as_entitlement", False)),
             on_pack_change=data.get("on_pack_change", "honor_existing"),
             benefit_type=data.get("benefit_type"),
+            source_rule_id=data.get("source_rule_id"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -44,70 +46,59 @@ class Effect:
             "persist_as_entitlement": self.persist_as_entitlement,
             "on_pack_change": self.on_pack_change,
             "benefit_type": self.benefit_type,
+            "source_rule_id": self.source_rule_id,
         }
 
 
 @dataclass(frozen=True)
-class Rule:
-    id: str
-    name: str
-    priority: int
-    effective_from: datetime
-    condition: dict[str, Any]
-    effects: tuple[Effect, ...]
-    effective_to: datetime | None = None
-    enabled: bool = True
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Rule:
-        effective_from = parse_dt(data["effective_from"])
-        if effective_from is None:
-            raise ValueError(f"Rule {data.get('id')} missing effective_from")
-        return cls(
-            id=data["id"],
-            name=data["name"],
-            priority=int(data.get("priority", 0)),
-            enabled=bool(data.get("enabled", True)),
-            effective_from=effective_from,
-            effective_to=parse_dt(data.get("effective_to")),
-            condition=data["condition"],
-            effects=tuple(Effect.from_dict(e) for e in data["effects"]),
-        )
-
-    def in_window(self, as_of: datetime) -> bool:
-        if as_of < self.effective_from:
-            return False
-        if self.effective_to is not None and as_of >= self.effective_to:
-            return False
-        return True
-
-
-@dataclass(frozen=True)
 class RulePack:
+    """Platform pack: governance metadata + GoRules JDM (nodes/edges)."""
+
     domain: str
     pack_id: str
     version: str
     lifecycle: str
-    rules: tuple[Rule, ...]
+    nodes: tuple[dict[str, Any], ...]
+    edges: tuple[dict[str, Any], ...]
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> RulePack:
-        rules = sorted(
-            (Rule.from_dict(r) for r in data["rules"]),
-            key=lambda r: (-r.priority, r.id),
-        )
+        nodes = data.get("nodes")
+        edges = data.get("edges")
+        if not isinstance(nodes, list) or not isinstance(edges, list):
+            raise ValueError("Pack payload must include JDM nodes and edges arrays")
+        if not nodes:
+            raise ValueError("JDM nodes must not be empty")
         return cls(
             domain=data["domain"],
             pack_id=data["pack_id"],
             version=data["version"],
             lifecycle=data.get("lifecycle", "draft"),
-            rules=tuple(rules),
+            nodes=tuple(nodes),
+            edges=tuple(edges),
         )
+
+    def jdm(self) -> dict[str, Any]:
+        """Slice executable by Zen (unknown top-level fields are ignored by the engine)."""
+        return {"nodes": list(self.nodes), "edges": list(self.edges)}
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "domain": self.domain,
+            "pack_id": self.pack_id,
+            "version": self.version,
+            "lifecycle": self.lifecycle,
+            "nodes": list(self.nodes),
+            "edges": list(self.edges),
+        }
+
+    def decision_table_nodes(self) -> list[dict[str, Any]]:
+        return [n for n in self.nodes if n.get("type") == "decisionTableNode"]
 
 
 @dataclass(frozen=True)
 class EntitlementSnapshot:
-    """Active entitlement presented to the engine (ledger lives in the API)."""
+    """Active entitlement presented to the adapter (ledger lives in the API)."""
 
     entitlement_id: str
     benefit_type: str
@@ -131,7 +122,7 @@ class EntitlementSnapshot:
 class RuleTraceEntry:
     rule_id: str
     rule_name: str
-    status: str  # matched | skipped | condition_false
+    status: str  # matched | skipped | condition_false | zen_node
     reason: str | None = None
     effects: list[dict[str, Any]] = field(default_factory=list)
 
@@ -152,15 +143,22 @@ class DecisionTrace:
     entries: list[RuleTraceEntry] = field(default_factory=list)
     entitlements_honored: list[dict[str, Any]] = field(default_factory=list)
     path: str = "rules"  # rules | entitlement | mixed
+    zen_trace: dict[str, Any] | None = None
+    zen_performance: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        body: dict[str, Any] = {
             "as_of": self.as_of.isoformat(),
             "pack_version": self.pack_version,
             "path": self.path,
             "entitlements_honored": self.entitlements_honored,
             "entries": [e.to_dict() for e in self.entries],
         }
+        if self.zen_trace is not None:
+            body["zen_trace"] = self.zen_trace
+        if self.zen_performance is not None:
+            body["zen_performance"] = self.zen_performance
+        return body
 
 
 @dataclass

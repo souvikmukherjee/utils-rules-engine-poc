@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from itertools import product
 from typing import Any
 
@@ -10,49 +11,57 @@ DEFAULT_MAX_CASES = 50
 HARD_MAX_CASES = 500
 MAX_DISCRETE_VALUES_PER_PATH = 8
 
+_STRING_LITERAL = re.compile(r"'([^']*)'|\"([^\"]*)\"")
+_BOOL_LITERAL = re.compile(r"^\s*(true|false)\s*$", re.I)
 
-def _collect_discrete(condition: dict[str, Any], buckets: dict[str, set[Any]]) -> None:
-    """Walk a condition tree and collect discrete candidate values per fact path."""
-    if "all" in condition:
-        for child in condition["all"]:
-            _collect_discrete(child, buckets)
-        return
-    if "any" in condition:
-        for child in condition["any"]:
-            _collect_discrete(child, buckets)
-        return
-    if "not" in condition:
-        _collect_discrete(condition["not"], buckets)
-        return
 
-    path = condition.get("path")
-    op = condition.get("op")
-    value = condition.get("value")
-    if not path or not op:
-        return
+def _literals_from_unary(cell: str) -> list[Any]:
+    """Pull discrete candidate values from a Zen unary decision-table cell."""
+    text = (cell or "").strip()
+    if not text:
+        return []
+    bool_match = _BOOL_LITERAL.match(text)
+    if bool_match:
+        return [bool_match.group(1).lower() == "true"]
 
-    bucket = buckets.setdefault(path, set())
-    if op == "in" and isinstance(value, list):
-        for item in value[:MAX_DISCRETE_VALUES_PER_PATH]:
-            bucket.add(_freeze(item))
-    elif op in {"eq", "neq"} and value is not None:
-        bucket.add(_freeze(value))
-        # For neq/eq include a contrasting sentinel so both branches appear.
-        if op == "neq":
-            bucket.add(_freeze(f"__not__{value}"))
-        elif op == "eq":
-            bucket.add(_freeze(f"__other__{value}"))
-    elif op == "exists":
-        # Represent presence vs absence via a marker; facts builder expands these.
-        bucket.add("__exists__")
-        bucket.add("__missing__")
-    elif op in {"gt", "gte", "lt", "lte"} and isinstance(value, (int, float)):
-        bucket.add(_freeze(value))
-        bucket.add(_freeze(value + 1 if op in {"gt", "gte"} else value - 1))
-        bucket.add(_freeze(value - 1 if op in {"gt", "gte"} else value + 1))
-    elif op == "contains" and value is not None:
-        bucket.add(_freeze([value] if not isinstance(value, list) else value))
-        bucket.add(_freeze([]))
+    found = [a or b for a, b in _STRING_LITERAL.findall(text)]
+    if found:
+        return found[:MAX_DISCRETE_VALUES_PER_PATH]
+
+    # Numeric comparisons — sample around the threshold when present.
+    nums = re.findall(r"-?\d+(?:\.\d+)?", text)
+    values: list[Any] = []
+    for n in nums[:3]:
+        values.append(float(n) if "." in n else int(n))
+    return values[:MAX_DISCRETE_VALUES_PER_PATH]
+
+
+def _collect_from_pack(pack: RulePack) -> dict[str, set[Any]]:
+    buckets: dict[str, set[Any]] = {}
+    for node in pack.decision_table_nodes():
+        content = node.get("content") or {}
+        inputs = content.get("inputs") or []
+        id_to_field = {
+            col["id"]: col["field"]
+            for col in inputs
+            if isinstance(col, dict) and col.get("id") and col.get("field")
+        }
+        for rule in content.get("rules") or []:
+            if not isinstance(rule, dict):
+                continue
+            for col_id, field in id_to_field.items():
+                if field == "as_of":
+                    continue
+                cell = rule.get(col_id, "")
+                if not isinstance(cell, str):
+                    continue
+                bucket = buckets.setdefault(field, set())
+                for value in _literals_from_unary(cell):
+                    bucket.add(_freeze(value))
+                # Include a contrasting sentinel so unmatched branches appear.
+                if bucket:
+                    bucket.add(_freeze(f"__other__{field}"))
+    return buckets
 
 
 def _freeze(value: Any) -> Any:
@@ -80,14 +89,7 @@ def _set_path(facts: dict[str, Any], path: str, value: Any) -> None:
             cursor[part] = {}
             nxt = cursor[part]
         cursor = nxt
-    leaf = parts[-1]
-    if value == "__missing__":
-        cursor.pop(leaf, None)
-        return
-    if value == "__exists__":
-        cursor[leaf] = True
-        return
-    cursor[leaf] = _unfreeze(value)
+    cursor[parts[-1]] = value
 
 
 def generate_test_cases(
@@ -95,57 +97,39 @@ def generate_test_cases(
     *,
     max_cases: int | None = None,
 ) -> dict[str, Any]:
-    """Deterministically generate permutation fixtures from discrete condition values.
-
-    Bounds:
-    - default max_cases = 50
-    - hard max_cases = 500
-    - at most 8 discrete values retained per fact path
-    """
+    """Build deterministic fixture permutations from decision-table input cells."""
     limit = DEFAULT_MAX_CASES if max_cases is None else int(max_cases)
     limit = max(1, min(limit, HARD_MAX_CASES))
 
-    buckets: dict[str, set[Any]] = {}
-    for rule in pack.rules:
-        if rule.enabled:
-            _collect_discrete(rule.condition, buckets)
-
+    buckets = _collect_from_pack(pack)
     paths = sorted(buckets.keys())
     value_lists: list[list[Any]] = []
     for path in paths:
         values = sorted(buckets[path], key=lambda v: repr(v))[:MAX_DISCRETE_VALUES_PER_PATH]
-        if not values:
-            values = [None]
-        value_lists.append(values)
+        value_lists.append([_unfreeze(v) for v in values])
 
     cases: list[dict[str, Any]] = []
-    truncated = False
     if not paths:
-        cases.append({"subject_id": "case-0001", "facts": {}, "label": "empty_facts"})
+        cases.append({"subject_id": "FF-TEST-0", "facts": {}})
     else:
-        for idx, combo in enumerate(product(*value_lists), start=1):
-            if idx > limit:
-                truncated = True
+        for idx, combo in enumerate(product(*value_lists)):
+            if idx >= limit:
                 break
             facts: dict[str, Any] = {}
-            for path, raw in zip(paths, combo):
-                _set_path(facts, path, raw)
-            cases.append(
-                {
-                    "subject_id": f"case-{idx:04d}",
-                    "facts": facts,
-                    "label": f"permutation_{idx}",
-                }
-            )
+            for path, value in zip(paths, combo):
+                if isinstance(value, str) and value.startswith("__other__"):
+                    _set_path(facts, path, "unknown")
+                else:
+                    _set_path(facts, path, value)
+            cases.append({"subject_id": f"FF-TEST-{idx}", "facts": facts})
 
     return {
         "domain": pack.domain,
         "pack_id": pack.pack_id,
         "version": pack.version,
+        "paths": paths,
+        "case_count": len(cases),
         "max_cases": limit,
         "hard_max_cases": HARD_MAX_CASES,
-        "paths": paths,
-        "truncated": truncated,
-        "case_count": len(cases),
         "cases": cases,
     }

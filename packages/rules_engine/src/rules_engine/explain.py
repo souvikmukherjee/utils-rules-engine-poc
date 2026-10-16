@@ -9,7 +9,13 @@ def _entry_reason(entry: RuleTraceEntry) -> str:
     if entry.status == "matched":
         effect_types = [e.get("type") for e in entry.effects]
         effects_txt = ", ".join(str(t) for t in effect_types) or "no effects"
-        return f"Rule '{entry.rule_name}' ({entry.rule_id}) matched and applied: {effects_txt}."
+        return (
+            f"Decision row '{entry.rule_name}' ({entry.rule_id}) matched "
+            f"via Zen and applied: {effects_txt}."
+        )
+    if entry.status == "zen_node":
+        detail = entry.reason or "executed"
+        return f"Zen node '{entry.rule_name}' ({entry.rule_id}) {detail}."
     if entry.status == "skipped":
         detail = entry.reason or "skipped"
         if detail == "outside_effective_window":
@@ -36,7 +42,11 @@ def explain_trace(trace: DecisionTrace) -> list[str]:
         gf = " (grandfathered)" if ent.get("grandfathered") else ""
         reasons.append(f"Honored entitlement {eid}: {btype}{gf}.")
     for entry in trace.entries:
+        if entry.status == "zen_node":
+            continue  # keep human reasons focused on matched rows + entitlements
         reasons.append(_entry_reason(entry))
+    if not reasons and not trace.entitlements_honored:
+        reasons.append("No decision-table rows matched and no entitlements were honored.")
     return reasons
 
 
@@ -47,15 +57,15 @@ def explain(result: DecisionResult) -> dict[str, Any]:
     if result.decision == "deny":
         summary = (
             "Decision is deny (deny-wins conflict policy): at least one deny effect "
-            "was present among matched rules or entitlements."
+            "was present among matched Zen rows or entitlements."
         )
     elif result.decision == "allow":
         if path == "entitlement":
             summary = "Decision is allow based on honored entitlements."
         elif path == "mixed":
-            summary = "Decision is allow from a mix of entitlements and matching rules."
+            summary = "Decision is allow from a mix of entitlements and matching JDM rows."
         else:
-            summary = "Decision is allow based on matching rule effects."
+            summary = "Decision is allow based on matching GoRules Zen decision-table rows."
     else:
         summary = (
             "Decision is inconclusive: no allow/deny/grant effects matched "

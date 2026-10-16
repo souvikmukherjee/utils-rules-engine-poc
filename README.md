@@ -1,16 +1,16 @@
-# Rules Engine Platform (PoC)
+# Axiom — Rules Platform (PoC)
 
-A domain-agnostic decision platform: business users author versioned rule packs; the engine evaluates facts deterministically; every decision is fully explainable and searchable.
+Domain-agnostic decision platform on **[GoRules Zen](https://docs.gorules.io/)**: business users author versioned **JSON Decision Models (JDM)**; Zen evaluates them; Axiom adds change management, simulation, grandfathering, canary, and searchable audit.
 
 ## Monorepo layout
 
 ```
 apps/
-  web/              Next.js — evaluate playground + audit search
+  web/              Next.js — Axiom UI + embedded GoRules JDM Editor
   api/              FastAPI — design-time + runtime APIs
 packages/
-  rules_engine/     Pure Python evaluate / temporal filter / traces / explain / testgen
-  rules_schema/     Shared JSON Schema for rule packs
+  rules_engine/     Zen adapter: evaluate / entitlements / explain / testgen
+  rules_schema/     Pack envelope schema (platform metadata + JDM)
 docs/
   PRODUCT.md
   ARCHITECTURE.md
@@ -24,8 +24,8 @@ docs/
 ## Quick start
 
 ```bash
-make install-py    # venv + engine + API
-make install-web   # pnpm deps for Next.js
+make install-py    # venv + engine + API (+ zen-engine)
+make install-web   # pnpm deps for Next.js (+ @gorules/jdm-editor)
 ```
 
 In two terminals:
@@ -71,10 +71,10 @@ make test
 
 | Method | Path | Notes |
 |--------|------|--------|
-| `POST` | `/v1/evaluate` | Decision + effects + trace; optional entitlement commit; canary-aware |
+| `POST` | `/v1/evaluate` | Decision + effects + Zen/platform trace; optional entitlement commit; canary-aware |
 | `POST` | `/v1/explain` | Same body as evaluate → human-readable reasons |
 | `POST` | `/v1/simulate` | Fixtures against a pack version; optional `compare_to_version` diff |
-| `POST` | `/v1/testgen` | Deterministic permutation cases (default max 50, hard max 500) |
+| `POST` | `/v1/testgen` | Deterministic permutation cases from JDM table inputs (default max 50, hard max 500) |
 | `GET` | `/v1/entitlements?subject_id=` | Optional `grandfathered=true\|false` filter |
 | `GET` | `/v1/audit/{evaluation_id}` | Single evaluation |
 | `GET` | `/v1/audit?subject_id=` | Search |
@@ -85,7 +85,7 @@ make test
 | Method | Path | Notes |
 |--------|------|--------|
 | `GET` | `/v1/packs/{domain}` | List versions |
-| `GET` | `/v1/packs/{domain}/{pack_id}/versions/{version}` | Full pack payload |
+| `GET` | `/v1/packs/{domain}/{pack_id}/versions/{version}` | Full JDM pack payload |
 | `POST` | `/v1/packs/{domain}/{pack_id}/versions` | Create draft (`payload` or `clone_from_version`) |
 | `PUT` | `/v1/packs/{domain}/{pack_id}/versions/{version}` | Update **draft** only |
 | `POST` | `/v1/packs/{domain}/{pack_id}/versions/{version}/transition` | Lifecycle; `change_record_id` required → `published` |
@@ -121,10 +121,10 @@ curl -s 'localhost:8000/v1/compliance/export?subject_id=FF-GRANDFATHERED&domain=
 
 ## Vertical slice (lounge)
 
-- Evaluate membership facts → allow/deny + companion grants
-- Rules outside their `effective_from`/`effective_to` window are skipped (visible in the trace)
-- Subject `FF-GRANDFATHERED` honors a pre-seeded entitlement without needing the old rule live
-- Deny-wins conflict policy; priority-ordered rules
+- JDM decision table → allow/deny + companion grants (executed by Zen)
+- Seasonal silver deny uses `as_of` date cells (`>= date('2099-01-01') …`)
+- Subject `FF-GRANDFATHERED` honors a pre-seeded entitlement without needing the old graph live
+- Deny-wins conflict policy across collected table matches
 - Canary: when `canary_percent < 100` and `canary_version` is set, a stable hash of `subject_id` selects canary vs production
 - Every evaluation is searchable under **Audit** by subject id
 

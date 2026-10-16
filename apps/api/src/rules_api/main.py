@@ -66,7 +66,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="Rules Engine Platform API",
-    version="0.3.0",
+    version="0.4.0",
     description="Design-time + runtime APIs for domain-agnostic rule evaluation and audit.",
     lifespan=lifespan,
 )

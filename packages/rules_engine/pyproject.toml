@@ -1,9 +1,11 @@
 [project]
 name = "rules-engine"
-version = "0.1.0"
-description = "Pure Python rules evaluation with temporal windows and decision traces"
+version = "0.2.0"
+description = "GoRules Zen adapter with platform entitlements, traces, and testgen"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "zen-engine>=0.50",
+]
 
 [build-system]
 requires = ["hatchling"]

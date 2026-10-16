@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
-from rules_engine.conditions import eval_condition
+import zen
+
 from rules_engine.models import (
     DecisionResult,
     DecisionTrace,
@@ -22,6 +24,8 @@ ACCESS_BENEFIT_TYPES = frozenset(
         "one_off_access",
     }
 )
+
+_ENGINE = zen.ZenEngine()
 
 
 def _normalize_as_of(as_of: datetime | str | None) -> datetime:
@@ -43,6 +47,93 @@ def _resolve_decision(effects: Iterable[Effect]) -> str:
     return "inconclusive"
 
 
+def _match_to_effect(row: dict[str, Any]) -> Effect | None:
+    """Map one collected decision-table row into a platform Effect."""
+    effect_type = row.get("effect_type") or row.get("decision")
+    if not effect_type:
+        return None
+    effect_type = str(effect_type)
+
+    payload: dict[str, Any] = {}
+    for key in ("lounge_class", "reason", "companions_allowed", "via"):
+        value = row.get(key)
+        if value is not None:
+            payload[key] = value
+
+    persist = bool(row.get("persist_as_entitlement", False))
+    benefit_type = row.get("benefit_type")
+    if benefit_type is not None:
+        benefit_type = str(benefit_type)
+
+    rule_id = row.get("rule_id")
+    if rule_id is not None:
+        rule_id = str(rule_id)
+
+    return Effect(
+        type=effect_type,
+        payload=payload,
+        persist_as_entitlement=persist,
+        on_pack_change="honor_existing",
+        benefit_type=benefit_type,
+        source_rule_id=rule_id,
+    )
+
+
+def _extract_matches(zen_result: dict[str, Any]) -> list[dict[str, Any]]:
+    result = zen_result.get("result") or {}
+    matches = result.get("matches")
+    if isinstance(matches, list):
+        return [m for m in matches if isinstance(m, dict)]
+    # Single-hit tables may return flat fields without outputPath.
+    if any(k in result for k in ("decision", "effect_type", "rule_id")):
+        return [result]
+    return []
+
+
+def _trace_from_zen(
+    zen_trace: dict[str, Any] | None,
+    matched_effects: list[Effect],
+) -> list[RuleTraceEntry]:
+    entries: list[RuleTraceEntry] = []
+    seen_rules: set[str] = set()
+
+    for effect in matched_effects:
+        rid = effect.source_rule_id or effect.type
+        if rid in seen_rules:
+            # Attach additional effects onto the existing matched entry.
+            for entry in entries:
+                if entry.rule_id == rid and entry.status == "matched":
+                    entry.effects.append(effect.to_dict())
+                    break
+            continue
+        seen_rules.add(rid)
+        entries.append(
+            RuleTraceEntry(
+                rule_id=rid,
+                rule_name=rid,
+                status="matched",
+                reason="zen_decision_table_match",
+                effects=[effect.to_dict()],
+            )
+        )
+
+    if zen_trace:
+        for node_id, node_trace in zen_trace.items():
+            if not isinstance(node_trace, dict):
+                continue
+            name = node_trace.get("name") or node_id
+            entries.append(
+                RuleTraceEntry(
+                    rule_id=str(node_id),
+                    rule_name=str(name),
+                    status="zen_node",
+                    reason=str(node_trace.get("nodeType") or "executed"),
+                )
+            )
+
+    return entries
+
+
 def evaluate(
     pack: RulePack,
     facts: dict[str, Any],
@@ -50,9 +141,12 @@ def evaluate(
     as_of: datetime | str | None = None,
     entitlements: list[EntitlementSnapshot] | None = None,
 ) -> DecisionResult:
-    """Evaluate facts against a rule pack with temporal filtering and entitlement honor.
+    """Evaluate facts against a JDM pack via GoRules Zen, then apply platform policy.
 
-    Conflict policy: collect matching effects; deny-wins.
+    Platform layer (not Zen):
+    - injects ``as_of`` as a Unix timestamp for temporal table cells
+    - honors entitlement ledger rows (grandfathering)
+    - deny-wins conflict resolution across collected effects
     """
     clock = _normalize_as_of(as_of)
     entitlements = list(entitlements or [])
@@ -69,6 +163,7 @@ def evaluate(
                 payload=dict(ent.benefit_payload),
                 persist_as_entitlement=False,
                 benefit_type=ent.benefit_type,
+                source_rule_id=ent.source_rule_id,
             )
             entitlement_effects.append(effect)
             trace.entitlements_honored.append(
@@ -78,60 +173,40 @@ def evaluate(
                 }
             )
 
+    context = dict(facts)
+    context["as_of"] = clock.timestamp()
+    context["as_of_iso"] = clock.isoformat()
+
+    decision_obj = _ENGINE.create_decision(json.dumps(pack.jdm()))
+    zen_response = decision_obj.evaluate(context, {"trace": True})
+
+    if isinstance(zen_response, dict):
+        zen_result = zen_response
+    else:
+        # Some bindings return objects with dict-like access.
+        zen_result = dict(zen_response)
+
+    matches = _extract_matches(zen_result)
     matched_effects: list[Effect] = []
+    for row in matches:
+        effect = _match_to_effect(row)
+        if effect is not None:
+            matched_effects.append(effect)
 
-    for rule in pack.rules:
-        if not rule.enabled:
-            trace.entries.append(
-                RuleTraceEntry(
-                    rule_id=rule.id,
-                    rule_name=rule.name,
-                    status="skipped",
-                    reason="disabled",
-                )
-            )
-            continue
+    zen_trace = zen_result.get("trace")
+    if isinstance(zen_trace, dict):
+        trace.zen_trace = zen_trace
+    perf = zen_result.get("performance")
+    if perf is not None:
+        trace.zen_performance = str(perf)
 
-        if not rule.in_window(clock):
-            trace.entries.append(
-                RuleTraceEntry(
-                    rule_id=rule.id,
-                    rule_name=rule.name,
-                    status="skipped",
-                    reason="outside_effective_window",
-                )
-            )
-            continue
+    trace.entries = _trace_from_zen(
+        zen_trace if isinstance(zen_trace, dict) else None,
+        matched_effects,
+    )
 
-        if not eval_condition(rule.condition, facts):
-            trace.entries.append(
-                RuleTraceEntry(
-                    rule_id=rule.id,
-                    rule_name=rule.name,
-                    status="condition_false",
-                    reason="condition_not_met",
-                )
-            )
-            continue
-
-        effects = list(rule.effects)
-        matched_effects.extend(effects)
-        trace.entries.append(
-            RuleTraceEntry(
-                rule_id=rule.id,
-                rule_name=rule.name,
-                status="matched",
-                reason="condition_met",
-                effects=[e.to_dict() for e in effects],
-            )
-        )
-
-    # Entitlement path can short-circuit eligibility when it already grants access,
-    # but we still evaluate rules so the trace shows what would have fired (mixed).
     all_effects = entitlement_effects + matched_effects
-    entitlements_to_create = [
-        e for e in matched_effects if e.persist_as_entitlement
-    ]
+    entitlements_to_create = [e for e in matched_effects if e.persist_as_entitlement]
 
     if honored and matched_effects:
         trace.path = "mixed"

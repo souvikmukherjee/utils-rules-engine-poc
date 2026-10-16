@@ -19,33 +19,41 @@ const TABS: { id: Tab; label: string }[] = [
 
 const TITLES: Record<Tab, string> = {
   evaluate: "Evaluate",
-  author: "Author",
+  author: "Author · JDM",
   simulate: "Simulate",
-  releases: "Releases",
+  releases: "Releases & change management",
   audit: "Audit & entitlements",
 };
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("evaluate");
+  const wide = tab === "author";
 
   return (
     <div className="hero-mesh grain min-h-screen">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-6 pt-8">
+      <header
+        className={`mx-auto flex items-center justify-between px-6 pt-8 ${
+          wide ? "max-w-7xl" : "max-w-5xl"
+        }`}
+      >
         <p className="font-[family-name:var(--font-display)] text-lg tracking-tight text-ink">
           Axiom
         </p>
         <p className="animate-pulse-soft font-mono text-xs uppercase tracking-[0.2em] text-sea">
-          Lounge domain · PoC
+          Zen · JDM · Lounge PoC
         </p>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 pb-20 pt-16">
+      <main
+        className={`mx-auto px-6 pb-20 pt-16 ${wide ? "max-w-7xl" : "max-w-5xl"}`}
+      >
         <section className="animate-rise max-w-2xl">
           <h1 className="font-[family-name:var(--font-display)] text-5xl leading-[1.05] tracking-tight text-ink sm:text-6xl">
             Axiom
           </h1>
           <p className="animate-rise-delay mt-4 max-w-md text-lg leading-relaxed text-ink/70">
-            Decisions you can explain. Rules you can trust.
+            Beautiful governance on GoRules Zen — author JDM, simulate, promote,
+            grandfather.
           </p>
           <div className="mt-8 flex flex-wrap gap-2">
             {TABS.map((t) => (
