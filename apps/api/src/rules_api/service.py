@@ -5,10 +5,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from rules_engine import EntitlementSnapshot, RulePack, evaluate, explain, generate_test_cases
+from rules_engine import EntitlementSnapshot, RulePack
 from rules_engine.models import Effect
 
 from rules_api.canary import pick_canary_version
+from rules_api.engines import EngineName, evaluate_with_engine, explain_with_engine, testgen_with_engine
 from rules_api.jsonutil import loads
 from rules_api.store import RulesStore
 
@@ -214,6 +215,7 @@ def run_evaluate(
     tenant_id: str = "default",
     version: str | None = None,
     write_audit_event: bool = True,
+    engine: EngineName = "zen",
 ) -> dict[str, Any]:
     pack, resolved_version, in_canary = resolve_pack_for_subject(
         store,
@@ -226,7 +228,9 @@ def run_evaluate(
     )
     clock = _parse_clock(as_of)
     ents = active_entitlements(store, domain, subject_id, clock, tenant_id=tenant_id)
-    result = evaluate(pack, facts, as_of=clock, entitlements=ents)
+    result = evaluate_with_engine(
+        engine, pack, facts, as_of=clock, entitlements=ents
+    )
 
     created: list[dict[str, Any]] = []
     if commit_entitlements and result.entitlements_to_create:
@@ -241,16 +245,20 @@ def run_evaluate(
         )
 
     evaluation_id = str(uuid.uuid4())
+    trace = result.trace.to_dict()
+    if "engine" not in trace:
+        trace["engine"] = engine
     body = {
         "evaluation_id": evaluation_id,
         "decision": result.decision,
         "effects": [e.to_dict() for e in result.effects],
         "entitlements_applied": [e.to_dict() for e in result.entitlements_applied],
         "entitlements_created": created,
-        "trace": result.trace.to_dict(),
+        "trace": trace,
         "pack_version": result.pack_version,
         "tenant_id": tenant_id,
         "canary": in_canary,
+        "engine": engine,
     }
     if write_audit_event:
         write_audit(
@@ -274,6 +282,7 @@ def run_evaluate(
                 "tenant_id": tenant_id,
                 "resolved_version": resolved_version,
                 "canary": in_canary,
+                "engine": engine,
             },
             result=body,
             tenant_id=tenant_id,
@@ -291,6 +300,7 @@ def run_explain(
     environment: str,
     as_of: str | None,
     tenant_id: str = "default",
+    engine: EngineName = "zen",
 ) -> dict[str, Any]:
     pack, _, _ = resolve_pack_for_subject(
         store,
@@ -302,8 +312,9 @@ def run_explain(
     )
     clock = _parse_clock(as_of)
     ents = active_entitlements(store, domain, subject_id, clock, tenant_id=tenant_id)
-    result = evaluate(pack, facts, as_of=clock, entitlements=ents)
-    body = explain(result)
+    body = explain_with_engine(
+        engine, pack, facts, as_of=clock, entitlements=ents
+    )
     body["tenant_id"] = tenant_id
     return body
 
@@ -318,6 +329,7 @@ def run_simulate(
     compare_to_version: str | None = None,
     tenant_id: str = "default",
     environment: str = "production",
+    engine: EngineName = "zen",
 ) -> dict[str, Any]:
     if version:
         primary_version = version
@@ -342,7 +354,9 @@ def run_simulate(
         facts = fixture.get("facts") or {}
         clock = _parse_clock(fixture.get("as_of"))
         ents = active_entitlements(store, domain, subject_id, clock, tenant_id=tenant_id)
-        primary = evaluate(primary_pack, facts, as_of=clock, entitlements=ents)
+        primary = evaluate_with_engine(
+            engine, primary_pack, facts, as_of=clock, entitlements=ents
+        )
         entry: dict[str, Any] = {
             "subject_id": subject_id,
             "facts": facts,
@@ -351,9 +365,12 @@ def run_simulate(
             "decision": primary.decision,
             "effects": [e.to_dict() for e in primary.effects],
             "trace": primary.trace.to_dict(),
+            "engine": engine,
         }
         if compare_pack is not None:
-            other = evaluate(compare_pack, facts, as_of=clock, entitlements=ents)
+            other = evaluate_with_engine(
+                engine, compare_pack, facts, as_of=clock, entitlements=ents
+            )
             entry["compare_to_version"] = compare_to_version
             entry["compare_decision"] = other.decision
             entry["diff"] = {
@@ -371,6 +388,7 @@ def run_simulate(
         "version": primary_version,
         "compare_to_version": compare_to_version,
         "tenant_id": tenant_id,
+        "engine": engine,
         "result_count": len(results),
         "results": results,
     }
@@ -385,6 +403,7 @@ def run_testgen(
     max_cases: int | None = None,
     tenant_id: str = "default",
     environment: str = "production",
+    engine: EngineName = "zen",
 ) -> dict[str, Any]:
     if version is None:
         release = store.get_release(domain, pack_id, environment, tenant_id=tenant_id)
@@ -392,7 +411,7 @@ def run_testgen(
             raise LookupError(f"No release for {domain}/{pack_id}")
         version = release["pack_version"]
     pack = load_pack_version(store, domain, pack_id, version, tenant_id=tenant_id)
-    body = generate_test_cases(pack, max_cases=max_cases)
+    body = testgen_with_engine(engine, pack, max_cases=max_cases)
     body["tenant_id"] = tenant_id
     return body
 

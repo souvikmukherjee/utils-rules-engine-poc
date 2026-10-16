@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { AuditPanel } from "@/components/AuditPanel";
 import { AuthorPanel } from "@/components/AuthorPanel";
+import { EngineToggle } from "@/components/EngineToggle";
 import { EvaluatePanel } from "@/components/EvaluatePanel";
 import { ReleasesPanel } from "@/components/ReleasesPanel";
 import { SimulatePanel } from "@/components/SimulatePanel";
+import { useEngine } from "@/lib/engine";
 
 type Tab = "evaluate" | "author" | "simulate" | "releases" | "audit";
 
@@ -27,21 +29,25 @@ const TITLES: Record<Tab, string> = {
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("evaluate");
+  const { engine } = useEngine();
   const wide = tab === "author";
 
   return (
     <div className="hero-mesh grain min-h-screen">
       <header
-        className={`mx-auto flex items-center justify-between px-6 pt-8 ${
+        className={`mx-auto flex items-center justify-between gap-4 px-6 pt-8 ${
           wide ? "max-w-7xl" : "max-w-5xl"
         }`}
       >
         <p className="font-[family-name:var(--font-display)] text-lg tracking-tight text-ink">
           Axiom
         </p>
-        <p className="animate-pulse-soft font-mono text-xs uppercase tracking-[0.2em] text-sea">
-          Zen · JDM · Lounge PoC
-        </p>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <EngineToggle />
+          <p className="animate-pulse-soft font-mono text-xs uppercase tracking-[0.2em] text-sea">
+            {engine === "cogito" ? "Cogito" : "Zen"} · JDM · Lounge PoC
+          </p>
+        </div>
       </header>
 
       <main
@@ -52,8 +58,8 @@ export default function Home() {
             Axiom
           </h1>
           <p className="animate-rise-delay mt-4 max-w-md text-lg leading-relaxed text-ink/70">
-            Beautiful governance on GoRules Zen — author JDM, simulate, promote,
-            grandfather.
+            Same authoring UI — toggle Zen or Cogito to redirect evaluation,
+            simulation, and testgen.
           </p>
           <div className="mt-8 flex flex-wrap gap-2">
             {TABS.map((t) => (

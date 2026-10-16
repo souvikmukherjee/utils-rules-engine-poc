@@ -1,15 +1,16 @@
 # Axiom — Rules Platform (PoC)
 
-Domain-agnostic decision platform on **[GoRules Zen](https://docs.gorules.io/)**: business users author versioned **JSON Decision Models (JDM)**; Zen evaluates them; Axiom adds change management, simulation, grandfathering, canary, and searchable audit.
+Domain-agnostic decision platform: business users author versioned **JSON Decision Models (JDM)**; evaluation runs on **[GoRules Zen](https://docs.gorules.io/)** or the parallel **Cogito** condition-IR engine (UI toggle). Axiom adds change management, simulation, grandfathering, canary, and searchable audit.
 
 ## Monorepo layout
 
 ```
 apps/
-  web/              Next.js — Axiom UI + embedded GoRules JDM Editor
-  api/              FastAPI — design-time + runtime APIs
+  web/              Next.js — Axiom UI + embedded GoRules JDM Editor + engine toggle
+  api/              FastAPI — design-time + runtime APIs (`engine: zen|cogito`)
 packages/
   rules_engine/     Zen adapter: evaluate / entitlements / explain / testgen
+  cogito_engine/    Cogito: condition-IR evaluator + JDM→IR bridge
   rules_schema/     Pack envelope schema (platform metadata + JDM)
 docs/
   PRODUCT.md

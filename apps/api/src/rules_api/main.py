@@ -105,9 +105,12 @@ def evaluate_endpoint(body: EvaluateRequest) -> dict[str, Any]:
             as_of=body.as_of,
             commit_entitlements=body.commit_entitlements,
             tenant_id=body.tenant_id or DEFAULT_TENANT_ID,
+            engine=body.engine,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/v1/explain", response_model=ExplainResponse)
@@ -123,9 +126,12 @@ def explain_endpoint(body: ExplainRequest) -> dict[str, Any]:
             environment=body.environment,
             as_of=body.as_of,
             tenant_id=body.tenant_id or DEFAULT_TENANT_ID,
+            engine=body.engine,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/v1/simulate")
@@ -141,9 +147,12 @@ def simulate_endpoint(body: SimulateRequest) -> dict[str, Any]:
             compare_to_version=body.compare_to_version,
             tenant_id=body.tenant_id or DEFAULT_TENANT_ID,
             environment=body.environment,
+            engine=body.engine,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/v1/testgen")
@@ -157,9 +166,12 @@ def testgen_endpoint(body: TestgenRequest) -> dict[str, Any]:
             version=body.version,
             max_cases=body.max_cases,
             tenant_id=body.tenant_id or DEFAULT_TENANT_ID,
+            engine=body.engine,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/v1/entitlements", response_model=list[EntitlementOut])

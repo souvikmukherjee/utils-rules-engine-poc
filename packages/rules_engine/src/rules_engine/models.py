@@ -143,6 +143,7 @@ class DecisionTrace:
     entries: list[RuleTraceEntry] = field(default_factory=list)
     entitlements_honored: list[dict[str, Any]] = field(default_factory=list)
     path: str = "rules"  # rules | entitlement | mixed
+    engine: str = "zen"
     zen_trace: dict[str, Any] | None = None
     zen_performance: str | None = None
 
@@ -151,6 +152,7 @@ class DecisionTrace:
             "as_of": self.as_of.isoformat(),
             "pack_version": self.pack_version,
             "path": self.path,
+            "engine": self.engine,
             "entitlements_honored": self.entitlements_honored,
             "entries": [e.to_dict() for e in self.entries],
         }

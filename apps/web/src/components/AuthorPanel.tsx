@@ -16,6 +16,7 @@ import {
   DEFAULT_PACK_ID,
   LIFECYCLE_TRANSITIONS,
 } from "@/lib/constants";
+import { useEngine } from "@/lib/engine";
 import { JdmEditor } from "./JdmEditor";
 import {
   ErrorAlert,
@@ -28,6 +29,7 @@ import {
 } from "./ui";
 
 export function AuthorPanel() {
+  const { engine } = useEngine();
   const [role, setRole] = useState<Role>("author");
   const [versions, setVersions] = useState<PackVersionSummary[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -250,7 +252,8 @@ export function AuthorPanel() {
               JSON Decision Model
             </h3>
             <p className="text-xs text-ink/50">
-              Powered by GoRules JDM Editor · evaluated by Zen
+              Powered by GoRules JDM Editor · evaluated by{" "}
+              {engine === "cogito" ? "Cogito" : "Zen"}
             </p>
           </div>
           <JdmEditor

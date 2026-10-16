@@ -169,7 +169,8 @@ export function EvaluatePanel() {
                 {result.decision}
               </p>
               <p className="mt-1 font-mono text-xs text-ink/50">
-                path={result.trace.path} · pack={result.pack_version} · id=
+                engine={result.engine ?? result.trace.engine ?? "zen"} · path=
+                {result.trace.path} · pack={result.pack_version} · id=
                 {result.evaluation_id.slice(0, 8)}…
               </p>
             </div>

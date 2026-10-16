@@ -38,6 +38,40 @@ def test_evaluate_gold(client: TestClient):
     assert body["decision"] == "allow"
     assert body["pack_version"] == "1.0.0"
     assert body["tenant_id"] == "default"
+    assert body["engine"] == "zen"
+
+
+def test_evaluate_gold_via_cogito(client: TestClient):
+    resp = client.post(
+        "/v1/evaluate",
+        json={
+            "subject_id": "FF-1",
+            "facts": {"membership": {"tier": "gold"}},
+            "engine": "cogito",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["decision"] == "allow"
+    assert body["engine"] == "cogito"
+    assert body["trace"]["engine"] == "cogito"
+    assert any(e["status"] == "matched" for e in body["trace"]["entries"])
+
+
+def test_cogito_seasonal_deny(client: TestClient):
+    resp = client.post(
+        "/v1/evaluate",
+        json={
+            "subject_id": "FF-S",
+            "facts": {"membership": {"tier": "silver"}},
+            "as_of": "2099-06-15T00:00:00Z",
+            "engine": "cogito",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["decision"] == "deny"
+    assert body["engine"] == "cogito"
 
 
 def test_explain(client: TestClient):
