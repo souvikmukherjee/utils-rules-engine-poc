@@ -12,13 +12,23 @@ def seed_lounge(conn: sqlite3.Connection, *, tenant_id: str = DEFAULT_TENANT_ID)
     pack = load_lounge_pack()
     existing = conn.execute(
         """
-        SELECT 1 FROM rule_pack_versions
+        SELECT payload_json FROM rule_pack_versions
         WHERE tenant_id=? AND domain=? AND pack_id=? AND version=?
         """,
         (tenant_id, pack.domain, pack.pack_id, pack.version),
     ).fetchone()
     if existing:
-        return
+        import json
+        existing_payload = json.loads(existing[0])
+        if "nodes" in existing_payload and "edges" in existing_payload:
+            return
+        conn.execute(
+            """
+            DELETE FROM rule_pack_versions
+            WHERE tenant_id=? AND domain=? AND pack_id=? AND version=?
+            """,
+            (tenant_id, pack.domain, pack.pack_id, pack.version),
+        )
 
     payload = pack.to_dict()
 

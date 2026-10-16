@@ -118,7 +118,7 @@
           },
           {
             "_id": "companion-flag",
-            "i1": "",
+            "i1": "not in ['platinum', 'diamond']",
             "i2": "",
             "i3": "true",
             "i4": "",

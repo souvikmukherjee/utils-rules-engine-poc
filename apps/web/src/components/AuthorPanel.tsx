@@ -56,16 +56,30 @@ export function AuthorPanel() {
   useEffect(() => {
     if (!selectedKey) return;
     const [packId, version] = selectedKey.split("@");
+    const abortController = new AbortController();
     setBusy(true);
     setError(null);
+    setPack(null);
     getPackVersion(DEFAULT_DOMAIN, packId, version)
       .then((p) => {
-        setPack(p);
-        setDirty(false);
-        setMessage(null);
+        if (!abortController.signal.aborted) {
+          setPack(p);
+          setDirty(false);
+          setMessage(null);
+        }
       })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
-      .finally(() => setBusy(false));
+      .catch((err) => {
+        if (!abortController.signal.aborted) {
+          setPack(null);
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      })
+      .finally(() => {
+        if (!abortController.signal.aborted) {
+          setBusy(false);
+        }
+      });
+    return () => abortController.abort();
   }, [selectedKey]);
 
   async function handleClone() {
