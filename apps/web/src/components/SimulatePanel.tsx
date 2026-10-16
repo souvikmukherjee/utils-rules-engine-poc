@@ -8,38 +8,32 @@ import {
   testgen,
   type ExplainResult,
   type PackVersionSummary,
-  type Role,
   type SimulateCaseResult,
   type TestgenCase,
 } from "@/lib/api";
-import { DEFAULT_DOMAIN, DEFAULT_PACK_ID } from "@/lib/constants";
+import { scenariosForDomain } from "@/lib/constants";
+import { useWorkspace } from "@/lib/workspace";
 import {
   ErrorAlert,
   FieldLabel,
   PrimaryButton,
-  RoleSelect,
   Select,
   TextArea,
   TextInput,
 } from "./ui";
 
-const DEFAULT_FIXTURES = `[
-  {
-    "label": "Gold member",
-    "subject_id": "FF-1001",
-    "facts": { "membership": { "tier": "gold" } }
-  },
-  {
-    "label": "Silver (no access)",
-    "subject_id": "FF-3003",
-    "facts": { "membership": { "tier": "silver" } }
-  },
-  {
-    "label": "Grandfathered",
-    "subject_id": "FF-GRANDFATHERED",
-    "facts": { "membership": { "tier": "silver" } }
-  }
-]`;
+function fixturesForDomain(domainId: string): string {
+  const scenarios = scenariosForDomain(domainId).slice(0, 4);
+  return JSON.stringify(
+    scenarios.map((s) => ({
+      label: s.label,
+      subject_id: s.subject_id,
+      facts: s.facts,
+    })),
+    null,
+    2,
+  );
+}
 
 function decisionTone(decision: string): string {
   if (decision === "allow") return "text-sea";
@@ -48,10 +42,10 @@ function decisionTone(decision: string): string {
 }
 
 export function SimulatePanel() {
-  const [role, setRole] = useState<Role>("author");
+  const { domain, role, persona } = useWorkspace();
   const [versions, setVersions] = useState<PackVersionSummary[]>([]);
   const [version, setVersion] = useState("");
-  const [fixturesText, setFixturesText] = useState(DEFAULT_FIXTURES);
+  const [fixturesText, setFixturesText] = useState(() => fixturesForDomain("lounge"));
   const [asOf, setAsOf] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,16 +55,20 @@ export function SimulatePanel() {
   const [explanation, setExplanation] = useState<ExplainResult | null>(null);
 
   useEffect(() => {
+    if (!domain) return;
+    setFixturesText(fixturesForDomain(domain.id));
     void (async () => {
       try {
-        const list = await listPacks(DEFAULT_DOMAIN);
-        setVersions(list);
-        if (list[0]) setVersion(list[0].version);
+        const list = await listPacks(domain.id);
+        const filtered = list.filter((r) => r.pack_id === domain.pack_id);
+        setVersions(filtered.length ? filtered : list);
+        const first = (filtered.length ? filtered : list)[0];
+        if (first) setVersion(first.version);
       } catch {
         /* API may not be up — leave empty */
       }
     })();
-  }, []);
+  }, [domain]);
 
   async function onSimulate() {
     setLoading(true);
@@ -92,8 +90,8 @@ export function SimulatePanel() {
       }));
       const data = await simulate(
         {
-          domain: DEFAULT_DOMAIN,
-          pack_id: DEFAULT_PACK_ID,
+          domain: domain?.id,
+          pack_id: domain?.pack_id,
           version: version || null,
           fixtures: normalized,
         },
@@ -114,8 +112,8 @@ export function SimulatePanel() {
     try {
       const data = await testgen(
         {
-          domain: DEFAULT_DOMAIN,
-          pack_id: DEFAULT_PACK_ID,
+          domain: domain?.id,
+          pack_id: domain?.pack_id,
           version: version || null,
         },
         role,
@@ -157,8 +155,8 @@ export function SimulatePanel() {
       if (!fixture) throw new Error("Fixture not found");
       const data = await explain(
         {
-          domain: DEFAULT_DOMAIN,
-          pack_id: DEFAULT_PACK_ID,
+          domain: domain?.id,
+          pack_id: domain?.pack_id,
           version: version || null,
           subject_id: fixture.subject_id,
           facts: fixture.facts,
@@ -175,7 +173,9 @@ export function SimulatePanel() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <RoleSelect value={role} onChange={setRole} />
+        <p className="font-mono text-[11px] text-ink/45">
+          {persona?.name} · {role} · {domain?.name}
+        </p>
         <div className="flex flex-wrap gap-2">
           <PrimaryButton tone="ghost" onClick={() => void onTestgen()} disabled={loading}>
             Run testgen

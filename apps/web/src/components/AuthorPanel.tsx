@@ -8,21 +8,16 @@ import {
   transitionPackVersion,
   updatePackVersion,
   type PackVersionSummary,
-  type Role,
   type RulePack,
 } from "@/lib/api";
-import {
-  DEFAULT_DOMAIN,
-  DEFAULT_PACK_ID,
-  LIFECYCLE_TRANSITIONS,
-} from "@/lib/constants";
+import { LIFECYCLE_TRANSITIONS } from "@/lib/constants";
 import { useEngine } from "@/lib/engine";
+import { useWorkspace } from "@/lib/workspace";
 import { JdmEditor } from "./JdmEditor";
 import {
   ErrorAlert,
   FieldLabel,
   PrimaryButton,
-  RoleSelect,
   Select,
   TextInput,
   lifecycleTone,
@@ -30,7 +25,7 @@ import {
 
 export function AuthorPanel() {
   const { engine } = useEngine();
-  const [role, setRole] = useState<Role>("author");
+  const { domain, role, persona } = useWorkspace();
   const [versions, setVersions] = useState<PackVersionSummary[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [pack, setPack] = useState<RulePack | null>(null);
@@ -41,28 +36,37 @@ export function AuthorPanel() {
   const [message, setMessage] = useState<string | null>(null);
 
   const refreshVersions = useCallback(async () => {
-    const rows = await listPacks(DEFAULT_DOMAIN);
-    setVersions(rows);
-    if (!selectedKey && rows.length) {
-      const first = rows[0];
-      setSelectedKey(`${first.pack_id}@${first.version}`);
-    }
-  }, [selectedKey]);
+    if (!domain) return;
+    const rows = await listPacks(domain.id);
+    const forPack = rows.filter((r) => r.pack_id === domain.pack_id);
+    setVersions(forPack.length ? forPack : rows);
+    setSelectedKey((prev) => {
+      if (prev && (forPack.length ? forPack : rows).some(
+        (r) => `${r.pack_id}@${r.version}` === prev,
+      )) {
+        return prev;
+      }
+      const first = (forPack.length ? forPack : rows)[0];
+      return first ? `${first.pack_id}@${first.version}` : null;
+    });
+  }, [domain]);
 
   useEffect(() => {
+    setPack(null);
+    setSelectedKey(null);
     refreshVersions().catch((err) =>
       setError(err instanceof Error ? err.message : String(err)),
     );
   }, [refreshVersions]);
 
   useEffect(() => {
-    if (!selectedKey) return;
+    if (!selectedKey || !domain) return;
     const [packId, version] = selectedKey.split("@");
     const abortController = new AbortController();
     setBusy(true);
     setError(null);
     setPack(null);
-    getPackVersion(DEFAULT_DOMAIN, packId, version)
+    getPackVersion(domain.id, packId, version)
       .then((p) => {
         if (!abortController.signal.aborted) {
           setPack(p);
@@ -77,28 +81,25 @@ export function AuthorPanel() {
         }
       })
       .finally(() => {
-        if (!abortController.signal.aborted) {
-          setBusy(false);
-        }
+        if (!abortController.signal.aborted) setBusy(false);
       });
     return () => abortController.abort();
-  }, [selectedKey]);
+  }, [selectedKey, domain]);
 
   async function handleClone() {
+    if (!domain) return;
     setBusy(true);
     setError(null);
     try {
       const created = await createPackVersion(
-        DEFAULT_DOMAIN,
-        DEFAULT_PACK_ID,
-        {
-          clone_from_version: pack?.version ?? "1.0.0",
-        },
+        domain.id,
+        domain.pack_id,
+        { clone_from_version: pack?.version ?? undefined },
         role,
       );
       await refreshVersions();
       setSelectedKey(`${created.pack_id}@${created.version}`);
-      setMessage(`Draft ${created.version} created from ${pack?.version ?? "seed"}.`);
+      setMessage(`Draft ${created.version} created.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -163,20 +164,14 @@ export function AuthorPanel() {
     }
   }
 
-  const transitions = pack
-    ? LIFECYCLE_TRANSITIONS[pack.lifecycle] ?? []
-    : [];
-  const editable = pack?.lifecycle === "draft";
+  const transitions = pack ? LIFECYCLE_TRANSITIONS[pack.lifecycle] ?? [] : [];
+  const editable = pack?.lifecycle === "draft" && role !== "viewer";
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-4">
-        <div>
-          <FieldLabel>Role</FieldLabel>
-          <RoleSelect value={role} onChange={setRole} />
-        </div>
         <div className="min-w-[220px] flex-1">
-          <FieldLabel>Pack version</FieldLabel>
+          <FieldLabel>Pack version · {domain?.name}</FieldLabel>
           <Select
             value={selectedKey ?? ""}
             onChange={(e) => setSelectedKey(e.target.value || null)}
@@ -188,7 +183,14 @@ export function AuthorPanel() {
             ))}
           </Select>
         </div>
-        <PrimaryButton type="button" disabled={busy} onClick={handleClone}>
+        <p className="font-mono text-[11px] text-ink/45">
+          Acting as {persona?.name ?? "—"} ({role})
+        </p>
+        <PrimaryButton
+          type="button"
+          disabled={busy || role === "viewer" || !domain}
+          onClick={handleClone}
+        >
           Clone to draft
         </PrimaryButton>
         <PrimaryButton
@@ -209,7 +211,7 @@ export function AuthorPanel() {
             {pack.pack_id}@{pack.version}
           </span>
           {dirty && <span className="text-coral">Unsaved changes</span>}
-          {!editable && (
+          {!editable && pack.lifecycle !== "draft" && (
             <span className="text-ink/45">
               Published versions are immutable — clone to edit.
             </span>
@@ -217,7 +219,7 @@ export function AuthorPanel() {
         </div>
       )}
 
-      {pack && transitions.length > 0 && (
+      {pack && transitions.length > 0 && role !== "viewer" && (
         <div className="flex flex-wrap items-end gap-3 border border-[var(--line)] bg-white/50 p-4">
           <div className="min-w-[200px]">
             <FieldLabel>Change record (publish)</FieldLabel>
@@ -241,9 +243,7 @@ export function AuthorPanel() {
       )}
 
       <ErrorAlert message={error} />
-      {message && (
-        <p className="font-mono text-xs text-sea">{message}</p>
-      )}
+      {message && <p className="font-mono text-xs text-sea">{message}</p>}
 
       {pack && (
         <div className="space-y-2">
@@ -252,7 +252,7 @@ export function AuthorPanel() {
               JSON Decision Model
             </h3>
             <p className="text-xs text-ink/50">
-              Powered by GoRules JDM Editor · evaluated by{" "}
+              {domain?.name} · GoRules JDM Editor · evaluated by{" "}
               {engine === "kogito" ? "Kogito" : "Zen"}
             </p>
           </div>

@@ -1,0 +1,126 @@
+{
+  "domain": "banking_credit",
+  "pack_id": "home-loan-pricing",
+  "version": "1.0.0",
+  "lifecycle": "published",
+  "nodes": [
+    {
+      "id": "input",
+      "type": "inputNode",
+      "name": "Application",
+      "position": { "x": 80, "y": 200 },
+      "content": { "schema": "" }
+    },
+    {
+      "id": "pricing",
+      "type": "decisionTableNode",
+      "name": "Home loan rate band",
+      "position": { "x": 360, "y": 200 },
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [
+          { "id": "i1", "name": "LVR", "field": "loan.lvr" },
+          { "id": "i2", "name": "Score", "field": "applicant.credit_score" },
+          { "id": "i3", "name": "Product", "field": "loan.product" }
+        ],
+        "outputs": [
+          { "id": "o1", "name": "Decision", "field": "decision" },
+          { "id": "o2", "name": "Effect", "field": "effect_type" },
+          { "id": "o3", "name": "Rate bps", "field": "rate_bps" },
+          { "id": "o4", "name": "Band", "field": "pricing_band" },
+          { "id": "o5", "name": "Benefit", "field": "benefit_type" },
+          { "id": "o6", "name": "Persist", "field": "persist_as_entitlement" },
+          { "id": "o7", "name": "Reason", "field": "reason" },
+          { "id": "o8", "name": "Rule id", "field": "rule_id" }
+        ],
+        "rules": [
+          {
+            "_id": "prime-owner",
+            "i1": "< 0.8",
+            "i2": ">= 760",
+            "i3": "'owner_occupier'",
+            "o1": "\"allow\"",
+            "o2": "\"set_attribute\"",
+            "o3": "189",
+            "o4": "\"prime\"",
+            "o5": "null",
+            "o6": "false",
+            "o7": "\"prime_owner\"",
+            "o8": "\"prime-owner\""
+          },
+          {
+            "_id": "near-prime",
+            "i1": "< 0.9",
+            "i2": ">= 700",
+            "i3": "",
+            "o1": "\"allow\"",
+            "o2": "\"set_attribute\"",
+            "o3": "239",
+            "o4": "\"near_prime\"",
+            "o5": "null",
+            "o6": "false",
+            "o7": "\"near_prime\"",
+            "o8": "\"near-prime\""
+          },
+          {
+            "_id": "investor-load",
+            "i1": "< 0.8",
+            "i2": ">= 720",
+            "i3": "'investor'",
+            "o1": "\"allow\"",
+            "o2": "\"set_attribute\"",
+            "o3": "259",
+            "o4": "\"investor\"",
+            "o5": "null",
+            "o6": "false",
+            "o7": "\"investor_load\"",
+            "o8": "\"investor-load\""
+          },
+          {
+            "_id": "decline-high-lvr",
+            "i1": ">= 0.95",
+            "i2": "",
+            "i3": "",
+            "o1": "\"deny\"",
+            "o2": "\"deny\"",
+            "o3": "null",
+            "o4": "null",
+            "o5": "null",
+            "o6": "false",
+            "o7": "\"lvr_cap\"",
+            "o8": "\"decline-high-lvr\""
+          },
+          {
+            "_id": "decline-low-score",
+            "i1": "",
+            "i2": "< 620",
+            "i3": "",
+            "o1": "\"deny\"",
+            "o2": "\"deny\"",
+            "o3": "null",
+            "o4": "null",
+            "o5": "null",
+            "o6": "false",
+            "o7": "\"score_floor\"",
+            "o8": "\"decline-low-score\""
+          }
+        ],
+        "passThrough": false,
+        "inputField": null,
+        "outputPath": "matches",
+        "executionMode": "single"
+      }
+    },
+    {
+      "id": "output",
+      "type": "outputNode",
+      "name": "Offer",
+      "position": { "x": 680, "y": 200 },
+      "content": { "schema": "" }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "sourceId": "input", "type": "edge", "targetId": "pricing" },
+    { "id": "e2", "sourceId": "pricing", "type": "edge", "targetId": "output" }
+  ]
+}

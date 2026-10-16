@@ -101,7 +101,11 @@ def generate_test_cases(
     limit = DEFAULT_MAX_CASES if max_cases is None else int(max_cases)
     limit = max(1, min(limit, HARD_MAX_CASES))
 
-    buckets = _collect_from_pack(pack)
+    buckets = {
+        path: values
+        for path, values in _collect_from_pack(pack).items()
+        if values
+    }
     paths = sorted(buckets.keys())
     value_lists: list[list[Any]] = []
     for path in paths:

@@ -7,9 +7,11 @@ import {
   type AuditEvent,
   type Entitlement,
 } from "@/lib/api";
+import { useWorkspace } from "@/lib/workspace";
 import { ErrorAlert, FieldLabel, PrimaryButton, TextInput } from "./ui";
 
 export function AuditPanel() {
+  const { domain } = useWorkspace();
   const [subjectId, setSubjectId] = useState("FF-GRANDFATHERED");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,9 +24,10 @@ export function AuditPanel() {
     setError(null);
     setSearched(true);
     try {
+      const domainId = domain?.id ?? "lounge";
       const [audit, entitlements] = await Promise.all([
-        searchAudit(subjectId),
-        listEntitlements(subjectId),
+        searchAudit(subjectId, domainId),
+        listEntitlements(subjectId, domainId),
       ]);
       setEvents(audit);
       setEnts(entitlements);

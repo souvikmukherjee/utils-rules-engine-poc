@@ -25,7 +25,7 @@ function buildUrl(path: string, query?: Record<string, string>): string {
   return `${url}?${new URLSearchParams(query).toString()}`;
 }
 
-export type Role = "author" | "approver" | "admin";
+export type Role = "viewer" | "author" | "approver" | "admin";
 
 export type EvaluatePayload = {
   domain?: string;
@@ -316,30 +316,38 @@ export async function evaluate(payload: EvaluatePayload): Promise<EvaluateResult
   return request<EvaluateResult>("/v1/evaluate", {
     method: "POST",
     body: JSON.stringify({
-      domain: "lounge",
-      pack_id: "lounge-access",
-      environment: "production",
-      commit_entitlements: false,
+      domain: payload.domain ?? "lounge",
+      pack_id: payload.pack_id ?? "lounge-access",
+      environment: payload.environment ?? "production",
+      commit_entitlements: payload.commit_entitlements ?? false,
+      subject_id: payload.subject_id,
+      facts: payload.facts,
+      as_of: payload.as_of ?? null,
       engine: activeEngine,
-      ...payload,
     }),
   });
 }
 
-export async function searchAudit(subjectId: string): Promise<AuditEvent[]> {
+export async function searchAudit(
+  subjectId: string,
+  domain = "lounge",
+): Promise<AuditEvent[]> {
   return request<AuditEvent[]>(
     `/v1/audit?${new URLSearchParams({
       subject_id: subjectId,
-      domain: "lounge",
+      domain,
     })}`,
   );
 }
 
-export async function listEntitlements(subjectId: string): Promise<Entitlement[]> {
+export async function listEntitlements(
+  subjectId: string,
+  domain = "lounge",
+): Promise<Entitlement[]> {
   return request<Entitlement[]>(
     `/v1/entitlements?${new URLSearchParams({
       subject_id: subjectId,
-      domain: "lounge",
+      domain,
     })}`,
   );
 }
@@ -457,9 +465,9 @@ export async function simulate(
   return request<SimulateResult>("/v1/simulate", {
     method: "POST",
     body: JSON.stringify({
-      domain: "lounge",
-      pack_id: "lounge-access",
       environment: "production",
+      domain: payload.domain ?? "lounge",
+      pack_id: payload.pack_id ?? "lounge-access",
       engine: activeEngine,
       ...payload,
     }),
@@ -474,9 +482,9 @@ export async function explain(
   return request<ExplainResult>("/v1/explain", {
     method: "POST",
     body: JSON.stringify({
-      domain: "lounge",
-      pack_id: "lounge-access",
       environment: "production",
+      domain: payload.domain ?? "lounge",
+      pack_id: payload.pack_id ?? "lounge-access",
       engine: activeEngine,
       ...payload,
     }),
@@ -491,8 +499,8 @@ export async function testgen(
   return request<TestgenResult>("/v1/testgen", {
     method: "POST",
     body: JSON.stringify({
-      domain: "lounge",
-      pack_id: "lounge-access",
+      domain: payload.domain ?? "lounge",
+      pack_id: payload.pack_id ?? "lounge-access",
       engine: activeEngine,
       ...payload,
     }),

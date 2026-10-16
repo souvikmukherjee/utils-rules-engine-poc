@@ -8,20 +8,18 @@ import {
   updateRelease,
   type PackVersionSummary,
   type ReleaseConfig,
-  type Role,
 } from "@/lib/api";
-import { DEFAULT_DOMAIN, DEFAULT_PACK_ID } from "@/lib/constants";
+import { useWorkspace } from "@/lib/workspace";
 import {
   ErrorAlert,
   FieldLabel,
   PrimaryButton,
-  RoleSelect,
   Select,
   TextInput,
 } from "./ui";
 
 export function ReleasesPanel() {
-  const [role, setRole] = useState<Role>("admin");
+  const { domain, role, persona } = useWorkspace();
   const [environment, setEnvironment] = useState("production");
   const [versions, setVersions] = useState<PackVersionSummary[]>([]);
   const [release, setRelease] = useState<ReleaseConfig | null>(null);
@@ -42,12 +40,13 @@ export function ReleasesPanel() {
   }, []);
 
   const load = useCallback(async () => {
+    if (!domain) return;
     setLoading(true);
     setError(null);
     try {
       const [rel, packs] = await Promise.all([
-        getRelease(DEFAULT_DOMAIN, DEFAULT_PACK_ID, environment),
-        listPacks(DEFAULT_DOMAIN).catch(() => [] as PackVersionSummary[]),
+        getRelease(domain.id, domain.pack_id, environment),
+        listPacks(domain.id).catch(() => [] as PackVersionSummary[]),
       ]);
       applyRelease(rel);
       setVersions(packs);
@@ -57,20 +56,21 @@ export function ReleasesPanel() {
     } finally {
       setLoading(false);
     }
-  }, [applyRelease, environment]);
+  }, [applyRelease, environment, domain]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   async function onSave() {
+    if (!domain) return;
     setLoading(true);
     setError(null);
     setNotice(null);
     try {
       const updated = await updateRelease(
-        DEFAULT_DOMAIN,
-        DEFAULT_PACK_ID,
+        domain.id,
+        domain.pack_id,
         {
           environment,
           pack_version: packVersion,
@@ -90,6 +90,7 @@ export function ReleasesPanel() {
   }
 
   async function onPromote() {
+    if (!domain) return;
     if (!changeRecordId.trim()) {
       setError("change_record_id is required to promote");
       return;
@@ -103,8 +104,8 @@ export function ReleasesPanel() {
     setNotice(null);
     try {
       const updated = await promotePack(
-        DEFAULT_DOMAIN,
-        DEFAULT_PACK_ID,
+        domain.id,
+        domain.pack_id,
         {
           environment,
           pack_version: packVersion,
@@ -126,7 +127,9 @@ export function ReleasesPanel() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <RoleSelect value={role} onChange={setRole} />
+        <p className="font-mono text-[11px] text-ink/45">
+          {persona?.name} · {role} · {domain?.name}
+        </p>
         <PrimaryButton tone="ghost" onClick={() => void load()} disabled={loading}>
           Refresh
         </PrimaryButton>

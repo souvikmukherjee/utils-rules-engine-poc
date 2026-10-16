@@ -2,35 +2,31 @@ from __future__ import annotations
 
 import sqlite3
 
-from rules_engine.samples import load_lounge_pack
+from rules_engine.samples import all_seed_packs
 
 from rules_api.db import DEFAULT_TENANT_ID
 from rules_api.jsonutil import dumps
 
 
-def seed_lounge(conn: sqlite3.Connection, *, tenant_id: str = DEFAULT_TENANT_ID) -> None:
-    pack = load_lounge_pack()
+def _seed_pack(
+    conn: sqlite3.Connection,
+    pack_dict: dict,
+    *,
+    tenant_id: str,
+    change_record_id: str,
+) -> None:
+    domain = pack_dict["domain"]
+    pack_id = pack_dict["pack_id"]
+    version = pack_dict["version"]
     existing = conn.execute(
         """
-        SELECT payload_json FROM rule_pack_versions
+        SELECT 1 FROM rule_pack_versions
         WHERE tenant_id=? AND domain=? AND pack_id=? AND version=?
         """,
-        (tenant_id, pack.domain, pack.pack_id, pack.version),
+        (tenant_id, domain, pack_id, version),
     ).fetchone()
     if existing:
-        import json
-        existing_payload = json.loads(existing[0])
-        if "nodes" in existing_payload and "edges" in existing_payload:
-            return
-        conn.execute(
-            """
-            DELETE FROM rule_pack_versions
-            WHERE tenant_id=? AND domain=? AND pack_id=? AND version=?
-            """,
-            (tenant_id, pack.domain, pack.pack_id, pack.version),
-        )
-
-    payload = pack.to_dict()
+        return
 
     conn.execute(
         """
@@ -38,9 +34,15 @@ def seed_lounge(conn: sqlite3.Connection, *, tenant_id: str = DEFAULT_TENANT_ID)
             tenant_id, domain, pack_id, version, lifecycle, payload_json
         ) VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (tenant_id, pack.domain, pack.pack_id, pack.version, pack.lifecycle, dumps(payload)),
+        (
+            tenant_id,
+            domain,
+            pack_id,
+            version,
+            pack_dict["lifecycle"],
+            dumps(pack_dict),
+        ),
     )
-
     conn.execute(
         """
         INSERT INTO releases (
@@ -50,18 +52,28 @@ def seed_lounge(conn: sqlite3.Connection, *, tenant_id: str = DEFAULT_TENANT_ID)
         """,
         (
             tenant_id,
-            pack.domain,
-            pack.pack_id,
+            domain,
+            pack_id,
             "production",
-            pack.version,
+            version,
             "2024-01-01T00:00:00+00:00",
             100,
             None,
-            "CR-SEED-001",
+            change_record_id,
         ),
     )
 
-    # Grandfathered companion pass — old pack, still honored via ledger.
+
+def seed_lounge_entitlements(
+    conn: sqlite3.Connection, *, tenant_id: str = DEFAULT_TENANT_ID
+) -> None:
+    existing = conn.execute(
+        "SELECT 1 FROM entitlements WHERE entitlement_id=?",
+        ("ent-ff-grandfathered-companion",),
+    ).fetchone()
+    if existing:
+        return
+
     conn.execute(
         """
         INSERT INTO entitlements (
@@ -86,8 +98,6 @@ def seed_lounge(conn: sqlite3.Connection, *, tenant_id: str = DEFAULT_TENANT_ID)
             "offered_pack_2023_q2",
         ),
     )
-
-    # Also grant lounge_access so eligibility short-circuits clearly for this subject.
     conn.execute(
         """
         INSERT INTO entitlements (
@@ -102,7 +112,13 @@ def seed_lounge(conn: sqlite3.Connection, *, tenant_id: str = DEFAULT_TENANT_ID)
             "lounge",
             "FF-GRANDFATHERED",
             "lounge_access",
-            dumps({"lounge_class": "domestic", "via": "grandfathered_offer"}),
+            dumps(
+                {
+                    "lounge_type": "business",
+                    "lounge_label": "Business Lounge",
+                    "via": "grandfathered_offer",
+                }
+            ),
             "0.9.0",
             "legacy-one-off-offer",
             "2023-06-15T10:00:00+00:00",
@@ -113,8 +129,18 @@ def seed_lounge(conn: sqlite3.Connection, *, tenant_id: str = DEFAULT_TENANT_ID)
         ),
     )
 
+
+def seed_all(conn: sqlite3.Connection, *, tenant_id: str = DEFAULT_TENANT_ID) -> None:
+    for idx, pack in enumerate(all_seed_packs()):
+        _seed_pack(
+            conn,
+            pack.to_dict(),
+            tenant_id=tenant_id,
+            change_record_id=f"CR-SEED-{idx + 1:03d}",
+        )
+    seed_lounge_entitlements(conn, tenant_id=tenant_id)
     conn.commit()
 
 
 def ensure_seeded(conn: sqlite3.Connection) -> None:
-    seed_lounge(conn)
+    seed_all(conn)

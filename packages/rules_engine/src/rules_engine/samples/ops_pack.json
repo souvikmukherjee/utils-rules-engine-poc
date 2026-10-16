@@ -1,0 +1,112 @@
+{
+  "domain": "airline_operations",
+  "pack_id": "ops-irrops-priority",
+  "version": "1.0.0",
+  "lifecycle": "published",
+  "nodes": [
+    {
+      "id": "input",
+      "type": "inputNode",
+      "name": "Disruption",
+      "position": { "x": 80, "y": 200 },
+      "content": { "schema": "" }
+    },
+    {
+      "id": "priority",
+      "type": "decisionTableNode",
+      "name": "IRROPS rebooking priority",
+      "position": { "x": 380, "y": 200 },
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [
+          { "id": "i1", "name": "Tier", "field": "membership.tier" },
+          { "id": "i2", "name": "Cabin", "field": "booking.cabin" },
+          { "id": "i3", "name": "Delay hours", "field": "disruption.delay_hours" }
+        ],
+        "outputs": [
+          { "id": "o1", "name": "Decision", "field": "decision" },
+          { "id": "o2", "name": "Effect", "field": "effect_type" },
+          { "id": "o3", "name": "Priority", "field": "rebook_priority" },
+          { "id": "o4", "name": "Voucher", "field": "voucher_aud" },
+          { "id": "o5", "name": "Benefit", "field": "benefit_type" },
+          { "id": "o6", "name": "Persist", "field": "persist_as_entitlement" },
+          { "id": "o7", "name": "Reason", "field": "reason" },
+          { "id": "o8", "name": "Rule id", "field": "rule_id" }
+        ],
+        "rules": [
+          {
+            "_id": "p1-first",
+            "i1": "'platinum_one'",
+            "i2": "",
+            "i3": ">= 2",
+            "o1": "\"allow\"",
+            "o2": "\"emit_offer\"",
+            "o3": "1",
+            "o4": "400",
+            "o5": "null",
+            "o6": "false",
+            "o7": "\"p1_priority\"",
+            "o8": "\"p1-first\""
+          },
+          {
+            "_id": "cabin-first",
+            "i1": "",
+            "i2": "'first'",
+            "i3": ">= 2",
+            "o1": "\"allow\"",
+            "o2": "\"emit_offer\"",
+            "o3": "2",
+            "o4": "300",
+            "o5": "null",
+            "o6": "false",
+            "o7": "\"cabin_first\"",
+            "o8": "\"cabin-first\""
+          },
+          {
+            "_id": "platinum-business",
+            "i1": "'platinum', 'gold'",
+            "i2": "'business', 'premium_economy'",
+            "i3": ">= 3",
+            "o1": "\"allow\"",
+            "o2": "\"emit_offer\"",
+            "o3": "3",
+            "o4": "200",
+            "o5": "null",
+            "o6": "false",
+            "o7": "\"status_cabin\"",
+            "o8": "\"platinum-business\""
+          },
+          {
+            "_id": "standard",
+            "i1": "",
+            "i2": "",
+            "i3": ">= 4",
+            "o1": "\"allow\"",
+            "o2": "\"emit_offer\"",
+            "o3": "5",
+            "o4": "100",
+            "o5": "null",
+            "o6": "false",
+            "o7": "\"standard_irrops\"",
+            "o8": "\"standard\""
+          }
+        ],
+        "passThrough": false,
+        "inputField": null,
+        "outputPath": "matches",
+        "executionMode": "single"
+      }
+    },
+    {
+      "id": "output",
+      "type": "outputNode",
+      "name": "Action",
+      "position": { "x": 700, "y": 200 },
+      "content": { "schema": "" }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "sourceId": "input", "type": "edge", "targetId": "priority" },
+    { "id": "e2", "sourceId": "priority", "type": "edge", "targetId": "output" }
+  ]
+}
