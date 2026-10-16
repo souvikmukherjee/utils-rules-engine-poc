@@ -257,6 +257,11 @@ export function AuthorPanel() {
             value={{ nodes: pack.nodes, edges: pack.edges }}
             disabled={!editable}
             onChange={(graph) => {
+              if (!editable) return;
+              const same =
+                JSON.stringify(graph.nodes) === JSON.stringify(pack.nodes) &&
+                JSON.stringify(graph.edges) === JSON.stringify(pack.edges);
+              if (same) return;
               setPack({ ...pack, nodes: graph.nodes, edges: graph.edges });
               setDirty(true);
             }}
