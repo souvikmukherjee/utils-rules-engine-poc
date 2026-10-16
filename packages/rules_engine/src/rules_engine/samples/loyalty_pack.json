@@ -1,0 +1,120 @@
+{
+  "domain": "loyalty",
+  "pack_id": "loyalty-tier-review",
+  "version": "1.0.0",
+  "lifecycle": "published",
+  "nodes": [
+    {
+      "id": "input",
+      "type": "inputNode",
+      "name": "Member year",
+      "position": { "x": 80, "y": 200 },
+      "content": { "schema": "" }
+    },
+    {
+      "id": "tier-review",
+      "type": "decisionTableNode",
+      "name": "Tier review",
+      "position": { "x": 360, "y": 200 },
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [
+          { "id": "i1", "name": "Status credits", "field": "year.status_credits" },
+          { "id": "i2", "name": "Sectors", "field": "year.sectors" },
+          { "id": "i3", "name": "Current tier", "field": "membership.tier" }
+        ],
+        "outputs": [
+          { "id": "o1", "name": "Decision", "field": "decision" },
+          { "id": "o2", "name": "Effect", "field": "effect_type" },
+          { "id": "o3", "name": "Next tier", "field": "next_tier" },
+          { "id": "o4", "name": "Benefit", "field": "benefit_type" },
+          { "id": "o5", "name": "Persist", "field": "persist_as_entitlement" },
+          { "id": "o6", "name": "Reason", "field": "reason" },
+          { "id": "o7", "name": "Rule id", "field": "rule_id" }
+        ],
+        "rules": [
+          {
+            "_id": "to-platinum-one",
+            "i1": ">= 2100",
+            "i2": ">= 50",
+            "i3": "",
+            "o1": "\"allow\"",
+            "o2": "\"set_attribute\"",
+            "o3": "\"platinum_one\"",
+            "o4": "null",
+            "o5": "false",
+            "o6": "\"qualify_p1\"",
+            "o7": "\"to-platinum-one\""
+          },
+          {
+            "_id": "to-platinum",
+            "i1": ">= 1400",
+            "i2": ">= 40",
+            "i3": "",
+            "o1": "\"allow\"",
+            "o2": "\"set_attribute\"",
+            "o3": "\"platinum\"",
+            "o4": "null",
+            "o5": "false",
+            "o6": "\"qualify_platinum\"",
+            "o7": "\"to-platinum\""
+          },
+          {
+            "_id": "to-gold",
+            "i1": ">= 700",
+            "i2": ">= 25",
+            "i3": "",
+            "o1": "\"allow\"",
+            "o2": "\"set_attribute\"",
+            "o3": "\"gold\"",
+            "o4": "null",
+            "o5": "false",
+            "o6": "\"qualify_gold\"",
+            "o7": "\"to-gold\""
+          },
+          {
+            "_id": "retain-silver",
+            "i1": ">= 300",
+            "i2": ">= 15",
+            "i3": "",
+            "o1": "\"allow\"",
+            "o2": "\"set_attribute\"",
+            "o3": "\"silver\"",
+            "o4": "null",
+            "o5": "false",
+            "o6": "\"qualify_silver\"",
+            "o7": "\"retain-silver\""
+          },
+          {
+            "_id": "bronze-floor",
+            "i1": "",
+            "i2": "",
+            "i3": "",
+            "o1": "\"allow\"",
+            "o2": "\"set_attribute\"",
+            "o3": "\"bronze\"",
+            "o4": "null",
+            "o5": "false",
+            "o6": "\"floor_bronze\"",
+            "o7": "\"bronze-floor\""
+          }
+        ],
+        "passThrough": false,
+        "inputField": null,
+        "outputPath": "matches",
+        "executionMode": "single"
+      }
+    },
+    {
+      "id": "output",
+      "type": "outputNode",
+      "name": "Outcome",
+      "position": { "x": 680, "y": 200 },
+      "content": { "schema": "" }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "sourceId": "input", "type": "edge", "targetId": "tier-review" },
+    { "id": "e2", "sourceId": "tier-review", "type": "edge", "targetId": "output" }
+  ]
+}

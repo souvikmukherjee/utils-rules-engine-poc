@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from rules_api.catalog import catalog_payload, domain_by_id, persona_by_id
 from rules_api.db import DEFAULT_TENANT_ID, open_store
 from rules_api.rbac import (
     assert_can_author,
@@ -65,9 +66,9 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="Rules Engine Platform API",
-    version="0.4.0",
-    description="Design-time + runtime APIs for domain-agnostic rule evaluation and audit.",
+    title="Axiom Decision Platform API",
+    version="0.5.0",
+    description="GoRules Zen + JDM with multi-domain governance, personas, and audit.",
     lifespan=lifespan,
 )
 
@@ -89,6 +90,31 @@ app.add_middleware(
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/v1/catalog")
+def get_catalog() -> dict[str, Any]:
+    """Domains, personas, and decision frameworks for the product UI."""
+    return catalog_payload()
+
+
+@app.get("/v1/catalog/domains/{domain_id}")
+def get_domain(domain_id: str) -> dict[str, Any]:
+    row = domain_by_id(domain_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Unknown domain '{domain_id}'")
+    payload = catalog_payload()
+    framework_id = row.get("framework")
+    framework = payload["frameworks"].get(framework_id) if framework_id else None
+    return {**row, "framework": framework}
+
+
+@app.get("/v1/catalog/personas/{persona_id}")
+def get_persona(persona_id: str) -> dict[str, Any]:
+    row = persona_by_id(persona_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Unknown persona '{persona_id}'")
+    return row
 
 
 @app.post("/v1/evaluate", response_model=EvaluateResponse)

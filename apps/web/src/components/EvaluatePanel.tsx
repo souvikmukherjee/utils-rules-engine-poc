@@ -1,49 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { evaluate, type EvaluateResult } from "@/lib/api";
-
-const PRESETS: { label: string; subject_id: string; facts: string }[] = [
-  {
-    label: "Gold member",
-    subject_id: "FF-1001",
-    facts: JSON.stringify(
-      { membership: { tier: "gold" } },
-      null,
-      2,
-    ),
-  },
-  {
-    label: "Partner elite",
-    subject_id: "FF-2002",
-    facts: JSON.stringify(
-      {
-        membership: { tier: "silver" },
-        partner: { airline: "Qantas", elite_tier: "gold" },
-      },
-      null,
-      2,
-    ),
-  },
-  {
-    label: "Grandfathered",
-    subject_id: "FF-GRANDFATHERED",
-    facts: JSON.stringify(
-      { membership: { tier: "silver" } },
-      null,
-      2,
-    ),
-  },
-  {
-    label: "Silver (no access)",
-    subject_id: "FF-3003",
-    facts: JSON.stringify(
-      { membership: { tier: "silver" } },
-      null,
-      2,
-    ),
-  },
-];
+import { scenariosForDomain } from "@/lib/constants";
+import { useWorkspace } from "@/lib/workspace";
+import { FrameworkPanel } from "./FrameworkPanel";
+import { ErrorAlert, FieldLabel, PrimaryButton, TextArea, TextInput } from "./ui";
 
 function decisionTone(decision: string): string {
   if (decision === "allow") return "text-sea";
@@ -51,20 +13,49 @@ function decisionTone(decision: string): string {
   return "text-ink/60";
 }
 
+function loungeFromResult(result: EvaluateResult): string | null {
+  for (const effect of result.effects) {
+    const label = effect.lounge_label ?? effect.lounge_type;
+    if (typeof label === "string" && label) return label;
+  }
+  return null;
+}
+
 export function EvaluatePanel() {
-  const [subjectId, setSubjectId] = useState(PRESETS[0].subject_id);
-  const [factsText, setFactsText] = useState(PRESETS[0].facts);
+  const { domain } = useWorkspace();
+  const presets = useMemo(
+    () => scenariosForDomain(domain?.id ?? "lounge"),
+    [domain?.id],
+  );
+  const [presetIndex, setPresetIndex] = useState(0);
+  const [subjectId, setSubjectId] = useState(presets[0]?.subject_id ?? "FF-1");
+  const [factsText, setFactsText] = useState(
+    JSON.stringify(presets[0]?.facts ?? {}, null, 2),
+  );
   const [asOf, setAsOf] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<EvaluateResult | null>(null);
 
+  useEffect(() => {
+    const p = presets[0];
+    if (!p) return;
+    setPresetIndex(0);
+    setSubjectId(p.subject_id);
+    setFactsText(JSON.stringify(p.facts, null, 2));
+    setResult(null);
+    setError(null);
+  }, [presets]);
+
   async function onEvaluate() {
+    if (!domain) return;
     setLoading(true);
     setError(null);
     try {
       const facts = JSON.parse(factsText) as Record<string, unknown>;
       const data = await evaluate({
+        domain: domain.id,
+        pack_id: domain.pack_id,
         subject_id: subjectId,
         facts,
         as_of: asOf || null,
@@ -79,150 +70,141 @@ export function EvaluatePanel() {
   }
 
   function applyPreset(index: number) {
-    const preset = PRESETS[index];
+    const preset = presets[index];
+    if (!preset) return;
+    setPresetIndex(index);
     setSubjectId(preset.subject_id);
-    setFactsText(preset.facts);
+    setFactsText(JSON.stringify(preset.facts, null, 2));
   }
 
+  const loungeLabel = result ? loungeFromResult(result) : null;
+
   return (
-    <div className="grid gap-8 lg:grid-cols-2">
-      <div className="space-y-5">
-        <div className="flex flex-wrap gap-2">
-          {PRESETS.map((p, i) => (
-            <button
-              key={p.label}
-              type="button"
-              onClick={() => applyPreset(i)}
-              className="border border-[var(--line)] bg-white/50 px-3 py-1.5 text-sm text-ink/80 transition hover:border-sea hover:text-sea"
-            >
-              {p.label}
-            </button>
-          ))}
+    <div className="space-y-8">
+      <p className="border border-[var(--line)] bg-white/50 px-4 py-3 text-sm text-ink/70">
+        The colour matrix below is the business view of eligibility. The
+        executable <span className="font-medium text-ink">JDM decision graph</span>{" "}
+        (Request → table → Response) lives under{" "}
+        <span className="font-medium text-sea">Author · Graph</span> — open a
+        decision-table node to edit rows like a spreadsheet.
+      </p>
+      <FrameworkPanel />
+
+      <div className="grid gap-8 lg:grid-cols-2">
+        <div className="space-y-5">
+          <div className="flex flex-wrap gap-2">
+            {presets.map((p, i) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => applyPreset(i)}
+                className={
+                  i === presetIndex
+                    ? "bg-sea px-3 py-1.5 text-sm text-foam"
+                    : "border border-[var(--line)] bg-white/50 px-3 py-1.5 text-sm text-ink/80 transition hover:border-sea hover:text-sea"
+                }
+                title={p.hint}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {presets[presetIndex]?.hint && (
+            <p className="font-mono text-xs text-sea">
+              {presets[presetIndex].hint}
+            </p>
+          )}
+
+          <label className="block space-y-1.5">
+            <FieldLabel>Subject ID</FieldLabel>
+            <TextInput
+              value={subjectId}
+              onChange={(e) => setSubjectId(e.target.value)}
+            />
+          </label>
+
+          <label className="block space-y-1.5">
+            <FieldLabel>As of (optional ISO)</FieldLabel>
+            <TextInput
+              value={asOf}
+              onChange={(e) => setAsOf(e.target.value)}
+              placeholder="2099-06-15T00:00:00Z"
+            />
+          </label>
+
+          <label className="block space-y-1.5">
+            <FieldLabel>Facts JSON</FieldLabel>
+            <TextArea
+              rows={12}
+              value={factsText}
+              onChange={(e) => setFactsText(e.target.value)}
+              spellCheck={false}
+            />
+          </label>
+
+          <PrimaryButton type="button" disabled={loading || !domain} onClick={onEvaluate}>
+            {loading ? "Evaluating…" : `Evaluate · ${domain?.name ?? "—"}`}
+          </PrimaryButton>
+          <ErrorAlert message={error} />
         </div>
 
-        <label className="block space-y-1.5">
-          <span className="font-mono text-xs uppercase tracking-wider text-ink/50">
-            Subject ID
-          </span>
-          <input
-            value={subjectId}
-            onChange={(e) => setSubjectId(e.target.value)}
-            className="w-full border border-[var(--line)] bg-white/70 px-3 py-2 font-mono text-sm outline-none ring-sea/30 focus:ring-2"
-          />
-        </label>
-
-        <label className="block space-y-1.5">
-          <span className="font-mono text-xs uppercase tracking-wider text-ink/50">
-            As of (optional ISO)
-          </span>
-          <input
-            value={asOf}
-            onChange={(e) => setAsOf(e.target.value)}
-            placeholder="2026-06-01T00:00:00Z"
-            className="w-full border border-[var(--line)] bg-white/70 px-3 py-2 font-mono text-sm outline-none ring-sea/30 focus:ring-2"
-          />
-        </label>
-
-        <label className="block space-y-1.5">
-          <span className="font-mono text-xs uppercase tracking-wider text-ink/50">
-            Facts JSON
-          </span>
-          <textarea
-            value={factsText}
-            onChange={(e) => setFactsText(e.target.value)}
-            rows={12}
-            className="w-full resize-y border border-[var(--line)] bg-white/70 px-3 py-2 font-mono text-sm leading-relaxed outline-none ring-sea/30 focus:ring-2"
-          />
-        </label>
-
-        <button
-          type="button"
-          onClick={onEvaluate}
-          disabled={loading}
-          className="bg-sea px-5 py-2.5 text-sm font-medium text-foam transition hover:bg-sea-deep disabled:opacity-50"
-        >
-          {loading ? "Evaluating…" : "Evaluate"}
-        </button>
-
-        {error && (
-          <p className="text-sm text-coral" role="alert">
-            {error}
-          </p>
-        )}
-      </div>
-
-      <div className="min-h-[20rem] border border-[var(--line)] bg-white/40 p-5">
-        {!result && !error && (
-          <p className="text-sm text-ink/45">
-            Run an evaluation to see the decision, effects, and rule trace.
-          </p>
-        )}
-        {result && (
-          <div className="space-y-5 animate-rise">
-            <div>
-              <p className="font-mono text-xs uppercase tracking-wider text-ink/50">
-                Decision
-              </p>
-              <p
-                className={`font-[family-name:var(--font-display)] text-4xl capitalize ${decisionTone(result.decision)}`}
-              >
-                {result.decision}
-              </p>
-              <p className="mt-1 font-mono text-xs text-ink/50">
-                path={result.trace.path} · pack={result.pack_version} · id=
-                {result.evaluation_id.slice(0, 8)}…
-              </p>
-            </div>
-
-            {result.entitlements_applied.length > 0 && (
+        <div className="space-y-4 border border-[var(--line)] bg-white/50 p-5">
+          {!result && (
+            <p className="text-sm text-ink/50">
+              Run a scenario to see Zen decision + lounge outcome.
+            </p>
+          )}
+          {result && (
+            <>
               <div>
-                <p className="mb-2 font-mono text-xs uppercase tracking-wider text-ink/50">
-                  Entitlements honored
+                <p
+                  className={`font-[family-name:var(--font-display)] text-4xl capitalize ${decisionTone(result.decision)}`}
+                >
+                  {result.decision}
                 </p>
+                {loungeLabel && (
+                  <p className="mt-2 font-[family-name:var(--font-display)] text-xl text-ink">
+                    {loungeLabel}
+                  </p>
+                )}
+                <p className="mt-1 font-mono text-[11px] text-ink/45">
+                  path={result.trace.path} · pack={result.pack_version} · id=
+                  {result.evaluation_id.slice(0, 8)}…
+                </p>
+              </div>
+
+              <div>
+                <h4 className="mb-2 font-mono text-[10px] uppercase tracking-wider text-ink/45">
+                  Effects
+                </h4>
+                <pre className="overflow-x-auto bg-ink/[0.03] p-3 font-mono text-xs leading-relaxed text-ink/80">
+                  {JSON.stringify(result.effects, null, 2)}
+                </pre>
+              </div>
+
+              <div>
+                <h4 className="mb-2 font-mono text-[10px] uppercase tracking-wider text-ink/45">
+                  Rule trace
+                </h4>
                 <ul className="space-y-2">
-                  {result.entitlements_applied.map((e) => (
-                    <li
-                      key={String(e.entitlement_id)}
-                      className="border-l-2 border-coral pl-3 text-sm"
-                    >
-                      <span className="font-medium">{String(e.benefit_type)}</span>
-                      {e.grandfathered ? (
-                        <span className="ml-2 font-mono text-xs text-coral">
-                          grandfathered
+                  {result.trace.entries
+                    .filter((e) => e.status === "matched")
+                    .map((e) => (
+                      <li
+                        key={`${e.rule_id}-${e.status}`}
+                        className="border border-[var(--line)] bg-white/70 px-3 py-2 text-sm"
+                      >
+                        <span className="font-medium text-ink">{e.rule_id}</span>
+                        <span className="ml-2 font-mono text-[11px] text-sea">
+                          {e.status} · {e.reason}
                         </span>
-                      ) : null}
-                    </li>
-                  ))}
+                      </li>
+                    ))}
                 </ul>
               </div>
-            )}
-
-            <div>
-              <p className="mb-2 font-mono text-xs uppercase tracking-wider text-ink/50">
-                Rule trace
-              </p>
-              <ul className="space-y-2">
-                {result.trace.entries.map((entry) => (
-                  <li
-                    key={entry.rule_id}
-                    className="flex flex-col gap-0.5 border-b border-[var(--line)] pb-2 text-sm last:border-0"
-                  >
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="font-medium">{entry.rule_name}</span>
-                      <span className="font-mono text-xs text-ink/50">
-                        {entry.status}
-                        {entry.reason ? ` · ${entry.reason}` : ""}
-                      </span>
-                    </div>
-                    <span className="font-mono text-xs text-ink/40">
-                      {entry.rule_id}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
