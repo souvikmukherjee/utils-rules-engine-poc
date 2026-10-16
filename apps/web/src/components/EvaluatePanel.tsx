@@ -151,7 +151,8 @@ export function EvaluatePanel() {
         <div className="space-y-4 border border-[var(--line)] bg-white/50 p-5">
           {!result && (
             <p className="text-sm text-ink/50">
-              Run a scenario to see Zen decision + lounge outcome.
+              Run a scenario to see the decision + lounge outcome (Zen or
+              Kogito).
             </p>
           )}
           {result && (
@@ -168,7 +169,8 @@ export function EvaluatePanel() {
                   </p>
                 )}
                 <p className="mt-1 font-mono text-[11px] text-ink/45">
-                  path={result.trace.path} · pack={result.pack_version} · id=
+                  engine={result.engine ?? result.trace.engine ?? "zen"} · path=
+                  {result.trace.path} · pack={result.pack_version} · id=
                   {result.evaluation_id.slice(0, 8)}…
                 </p>
               </div>

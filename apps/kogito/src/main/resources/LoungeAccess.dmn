@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="http://www.omg.org/spec/DMN/20180521/MODEL/"
+                 xmlns="https://axiom.local/dmn/lounge-access"
+                 xmlns:feel="http://www.omg.org/spec/DMN/20180521/FEEL/"
+                 xmlns:kie="http://www.drools.org/kie/dmn/1.2"
+                 xmlns:dmndi="http://www.omg.org/spec/DMN/20180521/DMNDI/"
+                 xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+                 xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+                 id="_LoungeAccessDefs"
+                 name="LoungeAccess"
+                 namespace="https://axiom.local/dmn/lounge-access"
+                 expressionLanguage="http://www.omg.org/spec/DMN/20180521/FEEL/"
+                 typeLanguage="http://www.omg.org/spec/DMN/20180521/FEEL/">
+
+  <dmn:inputData id="_in_tier" name="MembershipTier">
+    <dmn:variable id="_var_tier" name="MembershipTier" typeRef="string"/>
+  </dmn:inputData>
+  <dmn:inputData id="_in_partner" name="PartnerEliteTier">
+    <dmn:variable id="_var_partner" name="PartnerEliteTier" typeRef="string"/>
+  </dmn:inputData>
+  <dmn:inputData id="_in_companion" name="CompanionEligible">
+    <dmn:variable id="_var_companion" name="CompanionEligible" typeRef="boolean"/>
+  </dmn:inputData>
+  <dmn:inputData id="_in_asof" name="AsOf">
+    <dmn:variable id="_var_asof" name="AsOf" typeRef="date"/>
+  </dmn:inputData>
+
+  <dmn:decision id="_dec_eligibility" name="Eligibility">
+    <dmn:variable id="_var_eligibility" name="Eligibility" typeRef="string"/>
+    <dmn:informationRequirement id="_ir1">
+      <dmn:requiredInput href="#_in_tier"/>
+    </dmn:informationRequirement>
+    <dmn:informationRequirement id="_ir2">
+      <dmn:requiredInput href="#_in_partner"/>
+    </dmn:informationRequirement>
+    <dmn:informationRequirement id="_ir3">
+      <dmn:requiredInput href="#_in_companion"/>
+    </dmn:informationRequirement>
+    <dmn:informationRequirement id="_ir4">
+      <dmn:requiredInput href="#_in_asof"/>
+    </dmn:informationRequirement>
+    <dmn:decisionTable id="_dt_eligibility" hitPolicy="FIRST" preferredOrientation="Rule-as-Row">
+      <dmn:input id="_dti1">
+        <dmn:inputExpression id="_dti1e" typeRef="string">
+          <dmn:text>MembershipTier</dmn:text>
+        </dmn:inputExpression>
+      </dmn:input>
+      <dmn:input id="_dti2">
+        <dmn:inputExpression id="_dti2e" typeRef="string">
+          <dmn:text>PartnerEliteTier</dmn:text>
+        </dmn:inputExpression>
+      </dmn:input>
+      <dmn:input id="_dti3">
+        <dmn:inputExpression id="_dti3e" typeRef="boolean">
+          <dmn:text>CompanionEligible</dmn:text>
+        </dmn:inputExpression>
+      </dmn:input>
+      <dmn:input id="_dti4">
+        <dmn:inputExpression id="_dti4e" typeRef="date">
+          <dmn:text>AsOf</dmn:text>
+        </dmn:inputExpression>
+      </dmn:input>
+      <dmn:output id="_dto1" name="Eligibility" typeRef="string"/>
+
+      <dmn:rule id="_r_seasonal">
+        <dmn:inputEntry id="_r_seasonal_i1"><dmn:text>"silver"</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_seasonal_i2"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_seasonal_i3"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_seasonal_i4"><dmn:text>[date("2099-01-01")..date("2099-12-31")]</dmn:text></dmn:inputEntry>
+        <dmn:outputEntry id="_r_seasonal_o1"><dmn:text>"deny"</dmn:text></dmn:outputEntry>
+      </dmn:rule>
+
+      <dmn:rule id="_r_gold">
+        <dmn:inputEntry id="_r_gold_i1"><dmn:text>"gold", "platinum", "diamond"</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_gold_i2"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_gold_i3"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_gold_i4"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:outputEntry id="_r_gold_o1"><dmn:text>"allow"</dmn:text></dmn:outputEntry>
+      </dmn:rule>
+
+      <dmn:rule id="_r_partner">
+        <dmn:inputEntry id="_r_partner_i1"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_partner_i2"><dmn:text>"gold", "platinum", "first"</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_partner_i3"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_partner_i4"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:outputEntry id="_r_partner_o1"><dmn:text>"allow"</dmn:text></dmn:outputEntry>
+      </dmn:rule>
+
+      <dmn:rule id="_r_else">
+        <dmn:inputEntry id="_r_else_i1"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_else_i2"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_else_i3"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:inputEntry id="_r_else_i4"><dmn:text>-</dmn:text></dmn:inputEntry>
+        <dmn:outputEntry id="_r_else_o1"><dmn:text>"inconclusive"</dmn:text></dmn:outputEntry>
+      </dmn:rule>
+    </dmn:decisionTable>
+  </dmn:decision>
+
+  <dmn:decision id="_dec_lounge" name="LoungeClass">
+    <dmn:variable id="_var_lounge" name="LoungeClass" typeRef="string"/>
+    <dmn:informationRequirement id="_ir5">
+      <dmn:requiredInput href="#_in_tier"/>
+    </dmn:informationRequirement>
+    <dmn:informationRequirement id="_ir6">
+      <dmn:requiredInput href="#_in_partner"/>
+    </dmn:informationRequirement>
+    <dmn:informationRequirement id="_ir7">
+      <dmn:requiredDecision href="#_dec_eligibility"/>
+    </dmn:informationRequirement>
+    <dmn:literalExpression id="_lit_lounge">
+      <dmn:text>if Eligibility = "allow" then "domestic" else null</dmn:text>
+    </dmn:literalExpression>
+  </dmn:decision>
+
+  <dmn:decision id="_dec_companion" name="CompanionsAllowed">
+    <dmn:variable id="_var_comp_out" name="CompanionsAllowed" typeRef="number"/>
+    <dmn:informationRequirement id="_ir8">
+      <dmn:requiredInput href="#_in_tier"/>
+    </dmn:informationRequirement>
+    <dmn:informationRequirement id="_ir9">
+      <dmn:requiredInput href="#_in_companion"/>
+    </dmn:informationRequirement>
+    <dmn:literalExpression id="_lit_comp">
+      <dmn:text>if list contains(["platinum", "diamond"], MembershipTier) or CompanionEligible = true then 1 else 0</dmn:text>
+    </dmn:literalExpression>
+  </dmn:decision>
+
+  <dmn:decision id="_dec_rule" name="MatchedRule">
+    <dmn:variable id="_var_rule" name="MatchedRule" typeRef="string"/>
+    <dmn:informationRequirement id="_ir10">
+      <dmn:requiredInput href="#_in_tier"/>
+    </dmn:informationRequirement>
+    <dmn:informationRequirement id="_ir11">
+      <dmn:requiredInput href="#_in_partner"/>
+    </dmn:informationRequirement>
+    <dmn:informationRequirement id="_ir12">
+      <dmn:requiredInput href="#_in_asof"/>
+    </dmn:informationRequirement>
+    <dmn:informationRequirement id="_ir13">
+      <dmn:requiredDecision href="#_dec_eligibility"/>
+    </dmn:informationRequirement>
+    <dmn:literalExpression id="_lit_rule">
+      <dmn:text>
+        if Eligibility = "deny" then "seasonal-peak-deny-silver"
+        else if list contains(["gold", "platinum", "diamond"], MembershipTier) then "tier-gold-lounge"
+        else if list contains(["gold", "platinum", "first"], PartnerEliteTier) then "partner-elite-access"
+        else "none"
+      </dmn:text>
+    </dmn:literalExpression>
+  </dmn:decision>
+</dmn:definitions>

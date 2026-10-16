@@ -5,6 +5,19 @@
  */
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "/api").replace(/\/$/, "");
 
+export type RulesEngine = "zen" | "kogito";
+
+/** Active runtime engine; synced from EngineProvider so API calls redirect. */
+let activeEngine: RulesEngine = "zen";
+
+export function setActiveEngine(engine: RulesEngine): void {
+  activeEngine = engine;
+}
+
+export function getActiveEngine(): RulesEngine {
+  return activeEngine;
+}
+
 function buildUrl(path: string, query?: Record<string, string>): string {
   const p = path.startsWith("/") ? path : `/${path}`;
   const url = `${API_URL}${p}`;
@@ -34,6 +47,7 @@ export type EvaluateResult = {
     as_of: string;
     pack_version: string;
     path: string;
+    engine?: RulesEngine;
     entitlements_honored: Record<string, unknown>[];
     entries: {
       rule_id: string;
@@ -44,6 +58,7 @@ export type EvaluateResult = {
     }[];
   };
   pack_version: string;
+  engine?: RulesEngine;
 };
 
 export type AuditEvent = {
@@ -308,6 +323,7 @@ export async function evaluate(payload: EvaluatePayload): Promise<EvaluateResult
       subject_id: payload.subject_id,
       facts: payload.facts,
       as_of: payload.as_of ?? null,
+      engine: activeEngine,
     }),
   });
 }
@@ -452,6 +468,7 @@ export async function simulate(
       environment: "production",
       domain: payload.domain ?? "lounge",
       pack_id: payload.pack_id ?? "lounge-access",
+      engine: activeEngine,
       ...payload,
     }),
     role,
@@ -468,6 +485,7 @@ export async function explain(
       environment: "production",
       domain: payload.domain ?? "lounge",
       pack_id: payload.pack_id ?? "lounge-access",
+      engine: activeEngine,
       ...payload,
     }),
     role,
@@ -483,6 +501,7 @@ export async function testgen(
     body: JSON.stringify({
       domain: payload.domain ?? "lounge",
       pack_id: payload.pack_id ?? "lounge-access",
+      engine: activeEngine,
       ...payload,
     }),
     role,

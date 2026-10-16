@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, Fraunces, IBM_Plex_Mono } from "next/font/google";
+import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -19,9 +20,9 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Axiom — Zen Decision Platform",
+  title: "Axiom — Decision Platform",
   description:
-    "Author JSON Decision Models on GoRules Zen; simulate, promote, grandfather, and audit every decision.",
+    "Author JSON Decision Models; evaluate with GoRules Zen or Kogito DMN; simulate, promote, grandfather, and audit every decision.",
 };
 
 export default function RootLayout({
@@ -34,7 +35,7 @@ export default function RootLayout({
       <body
         className={`${dmSans.variable} ${fraunces.variable} ${ibmPlexMono.variable} antialiased`}
       >
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

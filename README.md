@@ -1,8 +1,8 @@
 # Axiom
 
-**Beautiful governance on [GoRules Zen](https://docs.gorules.io/).**
+**Beautiful governance on [GoRules Zen](https://docs.gorules.io/)** — with a parallel **[Kogito](https://kie.apache.org/docs/)** (DMN) runtime behind the same UI toggle.
 
-Axiom is a domain-agnostic decision platform. Business users author versioned **JSON Decision Models (JDM)** in a visual graph editor. Zen evaluates them deterministically. Axiom wraps the engine with what product teams actually need: personas and roles, multi-domain packs, simulation, change records, canary releases, grandfathered entitlements, and searchable audit.
+Axiom is a domain-agnostic decision platform. Business users author versioned **JSON Decision Models (JDM)** in a visual graph editor. Zen evaluates them deterministically; optionally flip the header toggle to redirect evaluation to Kogito. Axiom wraps the engine with what product teams actually need: personas and roles, multi-domain packs, simulation, change records, canary releases, grandfathered entitlements, and searchable audit.
 
 We do **not** invent another rules interpreter. We productize an open-source one.
 
@@ -171,8 +171,9 @@ Zen only needs `nodes` and `edges`. Axiom stores governance beside them:
 
 ```
 apps/
-  web/                 Next.js 15 — Axiom UI + @gorules/jdm-editor
-  api/                 FastAPI — design-time + runtime APIs
+  web/                 Next.js 15 — Axiom UI + @gorules/jdm-editor + Zen|Kogito toggle
+  api/                 FastAPI — design-time + runtime APIs (`engine: zen|kogito`)
+  kogito/              Quarkus + drools-quarkus-decisions — LoungeAccess DMN :8081
 packages/
   rules_engine/        Zen adapter (evaluate / explain / testgen)
   rules_schema/        Pack JSON Schema
@@ -192,19 +193,22 @@ Deeper reading: [Product vision](docs/PRODUCT.md) · [Architecture](docs/ARCHITE
 
 - Node.js **20+** and [pnpm](https://pnpm.io/) 9+
 - Python **3.11+**
+- Java **17+** and Maven **3.9+** (only needed for the parallel Kogito DMN service)
 
 ### Install
 
 ```bash
-make install-py    # venv + rules_engine + API + zen-engine
-make install-web   # pnpm deps (Next + JDM editor)
+make install-py      # venv + rules_engine + API + zen-engine
+make install-web     # pnpm deps (Next + JDM editor)
+make install-kogito  # package apps/kogito Quarkus service
 ```
 
 ### Run
 
 ```bash
+make kogito        # http://127.0.0.1:8081  — Kogito LoungeAccess DMN
 make api           # http://127.0.0.1:8000  — OpenAPI at /docs
-make web           # http://127.0.0.1:3000  — Axiom UI
+make web           # http://127.0.0.1:3000  — Axiom UI (toggle Zen | Kogito)
 ```
 
 Manual equivalent:

@@ -1,4 +1,4 @@
-.PHONY: install-py install-web api web test
+.PHONY: install-py install-web api web kogito test
 
 install-py:
 	python3 -m venv .venv || true
@@ -11,6 +11,9 @@ install-py:
 install-web:
 	pnpm install
 
+install-kogito:
+	cd apps/kogito && mvn -B -q -DskipTests package
+
 api:
 	@if [ -f .venv/bin/activate ]; then . .venv/bin/activate; fi; \
 	PYTHONPATH=packages/rules_engine/src:apps/api/src \
@@ -21,6 +24,9 @@ api:
 
 web:
 	pnpm dev:web
+
+kogito:
+	cd apps/kogito && mvn -q -DskipTests quarkus:dev -Dquarkus.http.port=8081
 
 test:
 	@if [ -f .venv/bin/activate ]; then . .venv/bin/activate; fi; \

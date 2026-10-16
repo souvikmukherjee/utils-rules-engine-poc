@@ -7,17 +7,19 @@
 | `apps/web` | Authoring (GoRules JDM Editor), simulation, releases, audit UX — never embeds production eval logic |
 | `apps/api` | Auth hooks, persistence, promotion, entitlement commits, change-record gates |
 | `packages/rules_engine` | **GoRules Zen adapter**: run JDM, map outputs → effects, honor entitlements, deny-wins, explain, testgen |
+| `apps/kogito` | **Kogito** (parallel): Quarkus + Drools DMN (`LoungeAccess.dmn`); REST at `:8081/LoungeAccess` |
 | `packages/rules_schema` | Shared JSON Schema for pack envelopes (`domain`/`lifecycle` + JDM `nodes`/`edges`) |
 
-We do **not** build a custom rules interpreter. Evaluation is [GoRules Zen](https://docs.gorules.io/developers/sdks/python) against the [JSON Decision Model](https://docs.gorules.io/developers/jdm/standard). Axiom owns the product surface around it.
+Authoring stays on the shared JDM UI. Runtime evaluation is selectable via `engine: zen | kogito` (UI toggle / request body). Zen evaluates the stored JDM; Kogito evaluates the seeded DMN model (facts mapped by the API adapter).
 
 ```mermaid
 flowchart LR
   UI[Axiom UI / JDM Editor] --> API[FastAPI platform]
   API --> Store[(Pack versions / releases / entitlements / audit)]
-  API --> Adapter[rules_engine Zen adapter]
-  Adapter --> Zen[GoRules Zen]
-  Adapter --> Ent[Entitlement honor + deny-wins]
+  API --> ZenAdapter[rules_engine Zen]
+  API --> KogitoClient[kogito HTTP client]
+  ZenAdapter --> Zen[GoRules Zen]
+  KogitoClient --> KogitoSvc[apps/kogito Quarkus DMN]
 ```
 
 ## Rule state — three axes

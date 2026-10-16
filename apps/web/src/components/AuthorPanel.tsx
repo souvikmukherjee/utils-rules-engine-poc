@@ -11,6 +11,7 @@ import {
   type RulePack,
 } from "@/lib/api";
 import { LIFECYCLE_TRANSITIONS } from "@/lib/constants";
+import { useEngine } from "@/lib/engine";
 import { useWorkspace } from "@/lib/workspace";
 import { JdmEditor } from "./JdmEditor";
 import {
@@ -23,6 +24,7 @@ import {
 } from "./ui";
 
 export function AuthorPanel() {
+  const { engine } = useEngine();
   const { domain, role, persona } = useWorkspace();
   const [versions, setVersions] = useState<PackVersionSummary[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -250,7 +252,8 @@ export function AuthorPanel() {
               JSON Decision Model
             </h3>
             <p className="text-xs text-ink/50">
-              {domain?.name} · GoRules JDM Editor · Zen
+              {domain?.name} · GoRules JDM Editor · evaluated by{" "}
+              {engine === "kogito" ? "Kogito" : "Zen"}
             </p>
           </div>
           <JdmEditor
