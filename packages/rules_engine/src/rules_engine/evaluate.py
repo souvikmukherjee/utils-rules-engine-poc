@@ -55,7 +55,21 @@ def _match_to_effect(row: dict[str, Any]) -> Effect | None:
     effect_type = str(effect_type)
 
     payload: dict[str, Any] = {}
-    for key in ("lounge_class", "reason", "companions_allowed", "via"):
+    for key in (
+        "lounge_class",
+        "lounge_type",
+        "lounge_label",
+        "reason",
+        "companions_allowed",
+        "via",
+        "rate_bps",
+        "pricing_band",
+        "next_tier",
+        "rebook_priority",
+        "voucher_aud",
+        "security_lane",
+        "terminal",
+    ):
         value = row.get(key)
         if value is not None:
             payload[key] = value
@@ -84,6 +98,9 @@ def _extract_matches(zen_result: dict[str, Any]) -> list[dict[str, Any]]:
     matches = result.get("matches")
     if isinstance(matches, list):
         return [m for m in matches if isinstance(m, dict)]
+    # hitPolicy first often returns a single object under outputPath.
+    if isinstance(matches, dict):
+        return [matches]
     # Single-hit tables may return flat fields without outputPath.
     if any(k in result for k in ("decision", "effect_type", "rule_id")):
         return [result]

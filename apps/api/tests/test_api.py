@@ -36,7 +36,7 @@ def test_evaluate_gold(client: TestClient):
     assert resp.status_code == 200
     body = resp.json()
     assert body["decision"] == "allow"
-    assert body["pack_version"] == "1.0.0"
+    assert body["pack_version"] == "2.0.0"
     assert body["tenant_id"] == "default"
 
 
@@ -59,7 +59,7 @@ def test_simulate_and_diff(client: TestClient):
     # Clone a draft so we have a second version to compare.
     clone = client.post(
         "/v1/packs/lounge/lounge-access/versions",
-        json={"version": "1.1.0-draft", "clone_from_version": "1.0.0"},
+        json={"version": "2.1.0-draft", "clone_from_version": "2.0.0"},
     )
     assert clone.status_code == 200
 
@@ -68,8 +68,8 @@ def test_simulate_and_diff(client: TestClient):
         json={
             "domain": "lounge",
             "pack_id": "lounge-access",
-            "version": "1.0.0",
-            "compare_to_version": "1.1.0-draft",
+            "version": "2.0.0",
+            "compare_to_version": "2.1.0-draft",
             "fixtures": [
                 {"subject_id": "FF-1", "facts": {"membership": {"tier": "gold"}}},
                 {"subject_id": "FF-2", "facts": {"membership": {"tier": "silver"}}},
@@ -125,19 +125,19 @@ def test_entitlements_grandfathered_filter(client: TestClient):
 def test_pack_crud_and_transition_rbac(client: TestClient):
     created = client.post(
         "/v1/packs/lounge/lounge-access/versions",
-        json={"version": "2.0.0", "clone_from_version": "1.0.0"},
+        json={"version": "3.0.0-draft", "clone_from_version": "2.0.0"},
         headers={"X-Role": "author"},
     )
     assert created.status_code == 200
     assert created.json()["lifecycle"] == "draft"
 
-    detail = client.get("/v1/packs/lounge/lounge-access/versions/2.0.0")
+    detail = client.get("/v1/packs/lounge/lounge-access/versions/3.0.0-draft")
     assert detail.status_code == 200
-    assert detail.json()["payload"]["version"] == "2.0.0"
+    assert detail.json()["payload"]["version"] == "3.0.0-draft"
 
     # Viewer cannot transition
     denied = client.post(
-        "/v1/packs/lounge/lounge-access/versions/2.0.0/transition",
+        "/v1/packs/lounge/lounge-access/versions/3.0.0-draft/transition",
         json={"to": "in_review"},
         headers={"X-Role": "viewer"},
     )
@@ -146,11 +146,11 @@ def test_pack_crud_and_transition_rbac(client: TestClient):
     # Author can submit draft → in_review and save JDM envelope payloads
     payload = created.json()["payload"]
     put_flat = client.put(
-        "/v1/packs/lounge/lounge-access/versions/2.0.0",
+        "/v1/packs/lounge/lounge-access/versions/3.0.0-draft",
         json={
             "domain": "lounge",
             "pack_id": "lounge-access",
-            "version": "2.0.0",
+            "version": "3.0.0-draft",
             "lifecycle": "draft",
             "nodes": payload["nodes"],
             "edges": payload["edges"],
@@ -160,7 +160,7 @@ def test_pack_crud_and_transition_rbac(client: TestClient):
     assert put_flat.status_code == 200, put_flat.text
 
     review = client.post(
-        "/v1/packs/lounge/lounge-access/versions/2.0.0/transition",
+        "/v1/packs/lounge/lounge-access/versions/3.0.0-draft/transition",
         json={"to": "in_review"},
         headers={"X-Role": "author"},
     )
@@ -168,14 +168,14 @@ def test_pack_crud_and_transition_rbac(client: TestClient):
 
     # Author cannot approve
     author_approve = client.post(
-        "/v1/packs/lounge/lounge-access/versions/2.0.0/transition",
+        "/v1/packs/lounge/lounge-access/versions/3.0.0-draft/transition",
         json={"to": "approved"},
         headers={"X-Role": "author"},
     )
     assert author_approve.status_code == 403
 
     approved = client.post(
-        "/v1/packs/lounge/lounge-access/versions/2.0.0/transition",
+        "/v1/packs/lounge/lounge-access/versions/3.0.0-draft/transition",
         json={"to": "approved"},
         headers={"X-Role": "approver"},
     )
@@ -183,14 +183,14 @@ def test_pack_crud_and_transition_rbac(client: TestClient):
 
     # published requires change_record_id
     bad = client.post(
-        "/v1/packs/lounge/lounge-access/versions/2.0.0/transition",
+        "/v1/packs/lounge/lounge-access/versions/3.0.0-draft/transition",
         json={"to": "published"},
         headers={"X-Role": "admin"},
     )
     assert bad.status_code == 400
 
     published = client.post(
-        "/v1/packs/lounge/lounge-access/versions/2.0.0/transition",
+        "/v1/packs/lounge/lounge-access/versions/3.0.0-draft/transition",
         json={"to": "published", "change_record_id": "CR-100"},
         headers={"X-Role": "admin"},
     )
@@ -198,10 +198,27 @@ def test_pack_crud_and_transition_rbac(client: TestClient):
     assert published.json()["lifecycle"] == "published"
 
 
+def test_catalog_domains_and_personas(client: TestClient):
+    cat = client.get("/v1/catalog").json()
+    ids = {d["id"] for d in cat["domains"]}
+    assert {"lounge", "loyalty", "airline_operations", "airports", "banking_credit"} <= ids
+    assert len(cat["personas"]) >= 4
+    assert "lounge_matrix" in cat["frameworks"]
+    matrix = cat["frameworks"]["lounge_matrix"]["matrix"]
+    bronze_first = next(
+        c for c in matrix if c["tier"] == "bronze" and c["cabin"] == "first"
+    )
+    assert bronze_first["lounge"] == "first"
+    platinum_economy = next(
+        c for c in matrix if c["tier"] == "platinum" and c["cabin"] == "economy"
+    )
+    assert platinum_economy["lounge"] == "business"
+
+
 def test_promote_and_release(client: TestClient):
     client.post(
         "/v1/packs/lounge/lounge-access/versions",
-        json={"version": "1.2.0", "clone_from_version": "1.0.0"},
+        json={"version": "1.2.0", "clone_from_version": "2.0.0"},
     )
     for step, cr in [
         ("in_review", None),
@@ -221,7 +238,7 @@ def test_promote_and_release(client: TestClient):
     promote = client.post(
         "/v1/packs/lounge/lounge-access/promote",
         json={
-            "from_version": "1.0.0",
+            "from_version": "2.0.0",
             "to_version": "1.2.0",
             "policy": "honor_existing",
             "change_record_id": "CR-PROMOTE-2",
@@ -259,19 +276,19 @@ def test_canary_bucket_stable():
     assert subject_bucket("FF-1") == subject_bucket("FF-1")
     v, in_canary = pick_canary_version(
         subject_id="FF-1",
-        pack_version="1.0.0",
+        pack_version="2.0.0",
         canary_percent=100,
         canary_version="2.0.0",
     )
-    assert v == "1.0.0" and in_canary is False
+    assert v == "2.0.0" and in_canary is False
 
     v50, flag = pick_canary_version(
         subject_id="FF-1",
-        pack_version="1.0.0",
+        pack_version="2.0.0",
         canary_percent=50,
         canary_version="2.0.0",
     )
-    assert v50 in {"1.0.0", "2.0.0"}
+    assert v50 in {"2.0.0", "2.0.0"}
     assert isinstance(flag, bool)
 
 
@@ -279,7 +296,7 @@ def test_canary_on_evaluate(client: TestClient):
     # Create and publish 2.0.0, then set canary on release.
     client.post(
         "/v1/packs/lounge/lounge-access/versions",
-        json={"version": "2.1.0", "clone_from_version": "1.0.0"},
+        json={"version": "2.1.0", "clone_from_version": "2.0.0"},
     )
     for step, cr in [
         ("in_review", None),
@@ -301,7 +318,7 @@ def test_canary_on_evaluate(client: TestClient):
     put = client.put(
         "/v1/releases/lounge/lounge-access",
         json={
-            "pack_version": "1.0.0",
+            "pack_version": "2.0.0",
             "canary_percent": 100,
             "canary_version": "2.1.0",
             "change_record_id": "CR-CANARY-REL",
@@ -314,7 +331,7 @@ def test_canary_on_evaluate(client: TestClient):
     put2 = client.put(
         "/v1/releases/lounge/lounge-access",
         json={
-            "pack_version": "1.0.0",
+            "pack_version": "2.0.0",
             "canary_percent": 50,
             "canary_version": "2.1.0",
             "change_record_id": "CR-CANARY-REL-2",
@@ -335,4 +352,4 @@ def test_canary_on_evaluate(client: TestClient):
         )
         assert r.status_code == 200
         versions.add(r.json()["pack_version"])
-    assert versions & {"1.0.0", "2.1.0"}
+    assert versions & {"2.0.0", "2.1.0"}

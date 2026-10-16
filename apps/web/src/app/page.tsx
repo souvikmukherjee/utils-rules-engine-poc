@@ -6,6 +6,8 @@ import { AuthorPanel } from "@/components/AuthorPanel";
 import { EvaluatePanel } from "@/components/EvaluatePanel";
 import { ReleasesPanel } from "@/components/ReleasesPanel";
 import { SimulatePanel } from "@/components/SimulatePanel";
+import { WorkspaceBar } from "@/components/WorkspaceBar";
+import { WorkspaceProvider, useWorkspace } from "@/lib/workspace";
 
 type Tab = "evaluate" | "author" | "simulate" | "releases" | "audit";
 
@@ -25,9 +27,10 @@ const TITLES: Record<Tab, string> = {
   audit: "Audit & entitlements",
 };
 
-export default function Home() {
+function HomeInner() {
   const [tab, setTab] = useState<Tab>("evaluate");
-  const wide = tab === "author";
+  const { domain } = useWorkspace();
+  const wide = tab === "author" || tab === "evaluate";
 
   return (
     <div className="hero-mesh grain min-h-screen">
@@ -40,22 +43,25 @@ export default function Home() {
           Axiom
         </p>
         <p className="animate-pulse-soft font-mono text-xs uppercase tracking-[0.2em] text-sea">
-          Zen · JDM · Lounge PoC
+          {domain?.name ?? "…"} · {domain?.industry ?? "—"}
         </p>
       </header>
 
       <main
         className={`mx-auto px-6 pb-20 pt-16 ${wide ? "max-w-7xl" : "max-w-5xl"}`}
       >
-        <section className="animate-rise max-w-2xl">
+        <section className="animate-rise max-w-3xl">
           <h1 className="font-[family-name:var(--font-display)] text-5xl leading-[1.05] tracking-tight text-ink sm:text-6xl">
             Axiom
           </h1>
-          <p className="animate-rise-delay mt-4 max-w-md text-lg leading-relaxed text-ink/70">
-            Beautiful governance on GoRules Zen — author JDM, simulate, promote,
-            grandfather.
+          <p className="animate-rise-delay mt-4 max-w-xl text-lg leading-relaxed text-ink/70">
+            Multi-domain decision governance on GoRules Zen — loyalty, lounge,
+            ops, airports, or banking credit — role-based personas included.
           </p>
-          <div className="mt-8 flex flex-wrap gap-2">
+          <div className="mt-8">
+            <WorkspaceBar />
+          </div>
+          <div className="mt-6 flex flex-wrap gap-2">
             {TABS.map((t) => (
               <button
                 key={t.id}
@@ -76,6 +82,11 @@ export default function Home() {
         <section className="mt-14 border-t border-[var(--line)] pt-10">
           <h2 className="mb-6 font-[family-name:var(--font-display)] text-2xl text-ink">
             {TITLES[tab]}
+            {domain ? (
+              <span className="ml-3 font-mono text-sm font-normal text-ink/40">
+                {domain.pack_id}
+              </span>
+            ) : null}
           </h2>
           {tab === "evaluate" && <EvaluatePanel />}
           {tab === "author" && <AuthorPanel />}
@@ -85,5 +96,13 @@ export default function Home() {
         </section>
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <WorkspaceProvider>
+      <HomeInner />
+    </WorkspaceProvider>
   );
 }
