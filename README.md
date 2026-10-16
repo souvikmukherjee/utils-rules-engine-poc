@@ -1,41 +1,213 @@
-# Axiom — Rules Platform (PoC)
+# Axiom
 
-Domain-agnostic decision platform on **[GoRules Zen](https://docs.gorules.io/)**: business users author versioned **JSON Decision Models (JDM)**; Zen evaluates them; Axiom adds change management, simulation, grandfathering, canary, and searchable audit.
+**Beautiful governance on [GoRules Zen](https://docs.gorules.io/).**
 
-## Monorepo layout
+Axiom is a domain-agnostic decision platform. Business users author versioned **JSON Decision Models (JDM)** in a visual graph editor. Zen evaluates them deterministically. Axiom wraps the engine with what product teams actually need: personas and roles, multi-domain packs, simulation, change records, canary releases, grandfathered entitlements, and searchable audit.
+
+We do **not** invent another rules interpreter. We productize an open-source one.
+
+---
+
+## Product at a glance
+
+| Design time | Runtime |
+|-------------|---------|
+| Visual JDM graphs + decision tables | Facts in → decision + effects + full trace |
+| Draft → review → approve → publish | Entitlement ledger (grandfathering) |
+| Simulate & diff pack versions | Virtual canary by subject hash |
+| Change-record gate to production | Append-only audit & compliance export |
+
+**Same platform, many industries.** Airline lounge access today; home-loan pricing tomorrow — swap the domain and the graph, not the engine.
+
+<p align="center">
+  <img src="docs/assets/jdm-graph-lounge.webp" alt="Lounge JDM decision graph in Author" width="900" />
+</p>
+<p align="center"><em>Author · Graph — lounge access decision model (Request → Normalize → Decision table → Response)</em></p>
+
+---
+
+## Tour the product
+
+### 1. Personas & domains
+
+Switch who you are and what you own. Authors only see domains they’re allowed to touch; approvers and admins promote; viewers audit.
+
+<p align="center">
+  <img src="docs/assets/persona-maya-domains.webp" alt="Persona and domain workspace bar" width="900" />
+</p>
+
+| Persona | Role | Domains |
+|---------|------|---------|
+| Maya Chen | Author | Loyalty, Lounge |
+| James Okonkwo | Approver | Airline ops, Airports |
+| Priya Nair | Admin | Lounge, Loyalty, Airports |
+| Tom Barrett / Sofia Alvarez | Author / Approver | Banking · credit |
+| Alex Kim | Viewer | All (read-only) |
+
+Seeded domains: **Loyalty · Lounge access · Airline operations · Airports · Banking · credit**.
+
+---
+
+### 2. Decision framework (business view)
+
+For lounge access, eligibility is a **tier × cabin** matrix across four lounge types: Chairman’s, First, Business, Qantas Club. Cabin can unlock above tier (Bronze flying First → First Lounge). Tier can unlock above cabin (Platinum flying Economy → Business Lounge).
+
+<p align="center">
+  <img src="docs/assets/lounge-decision-matrix.webp" alt="Colour-coded lounge eligibility matrix" width="900" />
+</p>
+
+| Tier \\ Cabin | Economy | Premium Economy | Business | First |
+|---------------|---------|-----------------|----------|-------|
+| Bronze | — | — | Qantas Club | **First** |
+| Silver | — | Club | Business | First |
+| Gold | Club | Club | Business | First |
+| Platinum | **Business** | Business | First | First |
+| Platinum One | **Chairman's** | Chairman's | Chairman's | Chairman's |
+
+---
+
+### 3. Evaluate with full traces
+
+Pick a scenario, run Zen, see decision + lounge outcome + matched rule rows.
+
+<p align="center">
+  <img src="docs/assets/bronze-first-lounge.webp" alt="Bronze flying First evaluates to First Lounge" width="900" />
+</p>
+<p align="center"><em>Bronze · First cabin → Allow · First Lounge</em></p>
+
+<p align="center">
+  <img src="docs/assets/platinum-economy-business.webp" alt="Platinum flying Economy evaluates to Business Lounge" width="900" />
+</p>
+<p align="center"><em>Platinum · Economy → Allow · Business Lounge</em></p>
+
+Banking uses the same Evaluate UX — different graph, same runtime:
+
+<p align="center">
+  <img src="docs/assets/banking-prime.webp" alt="Banking prime rate band evaluation" width="900" />
+</p>
+
+---
+
+### 4. Author · JDM graphs & tables
+
+Open **Author · Graph** for the GoRules editor. Drag nodes, connect edges, open a decision-table node for the spreadsheet.
+
+<p align="center">
+  <img src="docs/assets/jdm-table-lounge.webp" alt="Lounge decision table spreadsheet" width="900" />
+</p>
+<p align="center"><em>Lounge decision table — tier, cabin, partner elite → lounge type</em></p>
+
+<p align="center">
+  <img src="docs/assets/jdm-graph-banking.webp" alt="Banking home-loan JDM graph" width="900" />
+</p>
+<p align="center"><em>Banking · credit — Application → Home loan rate band → Offer</em></p>
+
+<p align="center">
+  <img src="docs/assets/jdm-graph-loyalty.webp" alt="Loyalty tier review JDM graph" width="900" />
+</p>
+<p align="center"><em>Loyalty — Member year → Tier review → Outcome</em></p>
+
+Published packs are **immutable**. Clone to draft → edit → submit for review → approve → publish with a change record.
+
+---
+
+### 5. Grandfathering & audit
+
+Durable grants live in an entitlement ledger. Retired rule text is never kept alive for special subjects — the ledger is.
+
+<p align="center">
+  <img src="docs/assets/audit-grandfathered.webp" alt="Audit search with grandfathered entitlements" width="900" />
+</p>
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Axiom UI (Next.js)                                         │
+│  Personas · Domains · Evaluate · Author (JDM Editor) ·      │
+│  Simulate · Releases · Audit                                │
+└───────────────────────────┬─────────────────────────────────┘
+                            │  /api → FastAPI
+┌───────────────────────────▼─────────────────────────────────┐
+│  Platform API                                               │
+│  Lifecycle · change records · canary · entitlements · audit │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+┌───────────────────────────▼─────────────────────────────────┐
+│  rules_engine adapter                                       │
+│  Inject as_of · call Zen · map matches → effects ·          │
+│  honor entitlements · deny-wins · explain · testgen         │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+┌───────────────────────────▼─────────────────────────────────┐
+│  GoRules Zen  ←  JSON Decision Model (nodes + edges)        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Three orthogonal state axes
+
+1. **Lifecycle** (platform) — `draft → in_review → approved → published → retired`
+2. **Temporal** (JDM) — `as_of` in context; date cells like `>= date('2099-01-01')`
+3. **Subject-bound entitlements** (platform) — grandfathering via ledger, not zombie rules
+
+### Pack envelope
+
+Zen only needs `nodes` and `edges`. Axiom stores governance beside them:
+
+```json
+{
+  "domain": "lounge",
+  "pack_id": "lounge-access",
+  "version": "2.0.0",
+  "lifecycle": "published",
+  "nodes": [ /* JDM */ ],
+  "edges": [ /* JDM */ ]
+}
+```
+
+### Monorepo
 
 ```
 apps/
-  web/              Next.js — Axiom UI + embedded GoRules JDM Editor
-  api/              FastAPI — design-time + runtime APIs
+  web/                 Next.js 15 — Axiom UI + @gorules/jdm-editor
+  api/                 FastAPI — design-time + runtime APIs
 packages/
-  rules_engine/     Zen adapter: evaluate / entitlements / explain / testgen
-  rules_schema/     Pack envelope schema (platform metadata + JDM)
+  rules_engine/        Zen adapter (evaluate / explain / testgen)
+  rules_schema/        Pack JSON Schema
 docs/
-  PRODUCT.md
-  ARCHITECTURE.md
+  PRODUCT.md           Product vision
+  ARCHITECTURE.md      Deep architecture
+  assets/              Screenshots for this README
 ```
 
-## Prerequisites
+Deeper reading: [Product vision](docs/PRODUCT.md) · [Architecture](docs/ARCHITECTURE.md)
 
-- Node.js 20+ and [pnpm](https://pnpm.io/)
-- Python 3.11+ (venv recommended)
+---
 
-## Quick start
+## Developer how-to
+
+### Prerequisites
+
+- Node.js **20+** and [pnpm](https://pnpm.io/) 9+
+- Python **3.11+**
+
+### Install
 
 ```bash
-make install-py    # venv + engine + API (+ zen-engine)
-make install-web   # pnpm deps for Next.js (+ @gorules/jdm-editor)
+make install-py    # venv + rules_engine + API + zen-engine
+make install-web   # pnpm deps (Next + JDM editor)
 ```
 
-In two terminals:
+### Run
 
 ```bash
-make api           # http://localhost:8000  (OpenAPI at /docs)
-make web           # http://localhost:3000  (Axiom UI)
+make api           # http://127.0.0.1:8000  — OpenAPI at /docs
+make web           # http://127.0.0.1:3000  — Axiom UI
 ```
 
-Or manually:
+Manual equivalent:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
@@ -48,16 +220,13 @@ PYTHONPATH=packages/rules_engine/src:apps/api/src \
 pnpm install && pnpm dev:web
 ```
 
-`NEXT_PUBLIC_API_URL` defaults to `http://localhost:8000` via `apps/web/.env.local`.
+### First five minutes in the UI
 
-### Database
-
-SQLite is the default PoC store (`apps/api/data/rules.db`).
-
-- Optional `DATABASE_URL`:
-  - `sqlite:///path/to.db` — use that SQLite file
-  - `postgres://` / `postgresql://` — **planned**; PoC warns and falls back to SQLite
-- Multi-tenant stub: pass `tenant_id` (default `default`) on requests; columns are present on packs, releases, entitlements, and audit.
+1. Open [http://127.0.0.1:3000](http://127.0.0.1:3000)
+2. Pick persona **Priya Nair** · domain **Lounge access**
+3. **Evaluate** — try *Bronze · First cabin* and *Platinum · Economy*
+4. **Author · Graph** — open the lounge graph; click **Edit Table** on the decision-table node
+5. Switch persona to **Tom Barrett** · domain **Banking · credit** — same product, different graph
 
 ### Tests
 
@@ -65,70 +234,103 @@ SQLite is the default PoC store (`apps/api/data/rules.db`).
 make test
 ```
 
-## API surface (Phases 0–3)
-
-### Runtime
-
-| Method | Path | Notes |
-|--------|------|--------|
-| `POST` | `/v1/evaluate` | Decision + effects + Zen/platform trace; optional entitlement commit; canary-aware |
-| `POST` | `/v1/explain` | Same body as evaluate → human-readable reasons |
-| `POST` | `/v1/simulate` | Fixtures against a pack version; optional `compare_to_version` diff |
-| `POST` | `/v1/testgen` | Deterministic permutation cases from JDM table inputs (default max 50, hard max 500) |
-| `GET` | `/v1/entitlements?subject_id=` | Optional `grandfathered=true\|false` filter |
-| `GET` | `/v1/audit/{evaluation_id}` | Single evaluation |
-| `GET` | `/v1/audit?subject_id=` | Search |
-| `GET` | `/v1/compliance/export?subject_id=&domain=` | Audit + entitlements JSON export |
-
-### Design-time packs & releases
-
-| Method | Path | Notes |
-|--------|------|--------|
-| `GET` | `/v1/packs/{domain}` | List versions |
-| `GET` | `/v1/packs/{domain}/{pack_id}/versions/{version}` | Full JDM pack payload |
-| `POST` | `/v1/packs/{domain}/{pack_id}/versions` | Create draft (`payload` or `clone_from_version`) |
-| `PUT` | `/v1/packs/{domain}/{pack_id}/versions/{version}` | Update **draft** only |
-| `POST` | `/v1/packs/{domain}/{pack_id}/versions/{version}/transition` | Lifecycle; `change_record_id` required → `published` |
-| `POST` | `/v1/packs/{domain}/{pack_id}/promote` | Cutover release pointer; production needs `change_record_id` |
-| `GET`/`PUT` | `/v1/releases/{domain}/{pack_id}` | Environment, pack_version, canary_%, canary_version, go_live_at |
-
-### RBAC stub
-
-Optional header `X-Role: viewer|author|approver|admin`.
-
-- Missing header → unrestricted (PoC default)
-- Promote / transition / release PUT → `approver` or `admin`
-- Draft create/update → `author`, `approver`, or `admin`
-
-### Try it
+### Useful API calls
 
 ```bash
-# Explain
+# Catalog (domains, personas, lounge matrix)
+curl -s localhost:8000/v1/catalog | jq .
+
+# Explain a gold member in economy (defaults cabin via normalize)
 curl -s localhost:8000/v1/explain -H 'content-type: application/json' \
-  -d '{"subject_id":"FF-1","facts":{"membership":{"tier":"gold"}}}' | jq .
+  -d '{"subject_id":"FF-1","domain":"lounge","pack_id":"lounge-access",
+       "facts":{"membership":{"tier":"gold"},"booking":{"cabin":"economy"}}}' | jq .
 
-# Simulate
-curl -s localhost:8000/v1/simulate -H 'content-type: application/json' \
-  -d '{"fixtures":[{"subject_id":"FF-1","facts":{"membership":{"tier":"gold"}}}]}' | jq .
+# Bronze flying First → First Lounge
+curl -s localhost:8000/v1/evaluate -H 'content-type: application/json' \
+  -d '{"subject_id":"FF-BRONZE-F","domain":"lounge","pack_id":"lounge-access",
+       "facts":{"membership":{"tier":"bronze"},"booking":{"cabin":"first"}}}' | jq '.decision,.effects'
 
-# Testgen
-curl -s localhost:8000/v1/testgen -H 'content-type: application/json' \
-  -d '{"max_cases":10}' | jq .
+# Banking prime band
+curl -s localhost:8000/v1/evaluate -H 'content-type: application/json' \
+  -d '{"subject_id":"LN-1","domain":"banking_credit","pack_id":"home-loan-pricing",
+       "facts":{"loan":{"lvr":0.7,"product":"owner_occupier"},
+                "applicant":{"credit_score":790}}}' | jq .
 
-# Compliance export
+# Compliance export for a grandfathered subject
 curl -s 'localhost:8000/v1/compliance/export?subject_id=FF-GRANDFATHERED&domain=lounge' | jq .
 ```
 
-## Vertical slice (lounge)
+### RBAC stub
 
-- JDM decision table → allow/deny + companion grants (executed by Zen)
-- Seasonal silver deny uses `as_of` date cells (`>= date('2099-01-01') …`)
-- Subject `FF-GRANDFATHERED` honors a pre-seeded entitlement without needing the old graph live
-- Deny-wins conflict policy across collected table matches
-- Canary: when `canary_percent < 100` and `canary_version` is set, a stable hash of `subject_id` selects canary vs production
-- Every evaluation is searchable under **Audit** by subject id
+Optional header `X-Role: viewer | author | approver | admin`.
 
-## Docs
+| Action | Minimum role |
+|--------|----------------|
+| Evaluate / simulate / audit | any (or unrestricted if header absent) |
+| Draft create / update | author+ |
+| Approve / publish / promote | approver / admin |
+| Publish & production promote | also requires `change_record_id` |
 
-- [Product vision](docs/PRODUCT.md)
-- [Architecture & state model](docs/ARCHITECTURE.md)
+In the UI, the selected **persona** sets `X-Role` and filters domains.
+
+### Database
+
+SQLite by default (`apps/api/data/rules.db`). Optional `DATABASE_URL`:
+
+| Value | Behaviour |
+|-------|-----------|
+| unset / `sqlite:///…` | Local SQLite |
+| `postgres://…` | Planned — PoC warns and stays on SQLite |
+
+---
+
+## API surface (summary)
+
+### Runtime
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/v1/evaluate` | Decision + effects + Zen/platform trace |
+| `POST` | `/v1/explain` | Human-readable reasons |
+| `POST` | `/v1/simulate` | Fixture batch; optional version diff |
+| `POST` | `/v1/testgen` | Permutation cases from table inputs |
+| `GET` | `/v1/entitlements` | Subject ledger (`grandfathered` filter) |
+| `GET` | `/v1/audit` · `/v1/audit/{id}` | Search / fetch |
+| `GET` | `/v1/compliance/export` | Audit + entitlements dump |
+
+### Design-time
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/v1/catalog` | Domains, personas, frameworks |
+| `GET/POST/PUT` | `/v1/packs/...` | List / draft / update JDM packs |
+| `POST` | `.../transition` | Lifecycle transitions |
+| `POST` | `.../promote` | Cutover / canary release pointer |
+| `GET/PUT` | `/v1/releases/...` | Environment release config |
+
+Full OpenAPI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) when the API is running.
+
+---
+
+## Why Zen + Axiom
+
+| Build ourselves | Adopt Zen + build Axiom |
+|-----------------|-------------------------|
+| Condition IR, tables, expressions, traces | Already solved in GoRules Zen |
+| Visual authoring | `@gorules/jdm-editor` |
+| Governance, entitlements, canary, audit | **This product** |
+
+Axiom’s bet: the engine is commodity; **trustworthy change** is the product.
+
+---
+
+## License & status
+
+PoC for exploring multi-domain decision governance. Not production-hardened (SQLite, stub RBAC, seeded personas). Contributions and forks welcome as experiments.
+
+---
+
+<p align="center">
+  <strong>Axiom</strong> — Decisions you can explain. Rules you can trust.<br/>
+  <sub>Powered by GoRules Zen · JSON Decision Model</sub>
+</p>
