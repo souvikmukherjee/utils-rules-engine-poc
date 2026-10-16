@@ -30,6 +30,45 @@ class EvaluateResponse(BaseModel):
     engine: Literal["zen", "kogito"] = "zen"
 
 
+class CompareRequest(BaseModel):
+    """Fire the same facts through Zen then Kogito and return a side-by-side diff."""
+
+    domain: str = "lounge"
+    subject_id: str
+    facts: dict[str, Any] = Field(default_factory=dict)
+    environment: str = "production"
+    as_of: str | None = None
+    pack_id: str = "lounge-access"
+    tenant_id: str = "default"
+
+
+class CompareEngineLeg(BaseModel):
+    engine: Literal["zen", "kogito"]
+    ok: bool
+    wall_millis: float
+    decision: str | None = None
+    result: dict[str, Any] | None = None
+    error: str | None = None
+
+
+class CompareDiff(BaseModel):
+    both_ok: bool
+    decisions_agree: bool
+    zen_decision: str | None = None
+    kogito_decision: str | None = None
+    wall_delta_millis: float | None = None
+    faster_engine: Literal["zen", "kogito", "tie"] | None = None
+    caveats: list[str] = Field(default_factory=list)
+
+
+class CompareResponse(BaseModel):
+    zen: CompareEngineLeg
+    kogito: CompareEngineLeg
+    diff: CompareDiff
+    total_wall_millis: float
+    notes: list[str] = Field(default_factory=list)
+
+
 class ExplainRequest(EvaluateRequest):
     """Same shape as evaluate; returns human-readable reasons (no entitlement commit)."""
 

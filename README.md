@@ -311,6 +311,7 @@ SQLite by default (`apps/api/data/rules.db`). Optional `DATABASE_URL`:
 | Method | Path | Purpose |
 |--------|------|---------|
 | `POST` | `/v1/evaluate` | Decision + effects + Zen/platform trace |
+| `POST` | `/v1/compare` | Zen then Kogito — decisions + wall timings |
 | `POST` | `/v1/explain` | Human-readable reasons |
 | `POST` | `/v1/simulate` | Fixture batch; optional version diff |
 | `POST` | `/v1/testgen` | Permutation cases from table inputs |

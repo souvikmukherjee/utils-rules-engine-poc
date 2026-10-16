@@ -16,6 +16,8 @@ from rules_api.rbac import (
 )
 from rules_api.schemas import (
     AuditEventOut,
+    CompareRequest,
+    CompareResponse,
     ComplianceExportOut,
     CreatePackVersionRequest,
     EntitlementOut,
@@ -39,6 +41,7 @@ from rules_api.service import (
     create_pack_version,
     get_or_update_release,
     promote_pack,
+    run_compare,
     run_evaluate,
     run_explain,
     run_simulate,
@@ -139,6 +142,27 @@ def evaluate_endpoint(body: EvaluateRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.post("/v1/compare", response_model=CompareResponse)
+def compare_endpoint(body: CompareRequest) -> dict[str, Any]:
+    """Run Zen then Kogito on the same facts; return decisions + wall timings."""
+    store = get_store()
+    try:
+        return run_compare(
+            store,
+            domain=body.domain,
+            pack_id=body.pack_id,
+            subject_id=body.subject_id,
+            facts=body.facts,
+            environment=body.environment,
+            as_of=body.as_of,
+            tenant_id=body.tenant_id or DEFAULT_TENANT_ID,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/v1/explain", response_model=ExplainResponse)

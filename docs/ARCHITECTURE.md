@@ -25,14 +25,13 @@ flowchart LR
   Spring --> KogitoSvc
 ```
 
-### Spring compare harness (`apps/spring-compare`)
+### Engine compare (platform + UI + Spring)
 
-Port **8082**. Orchestrates existing runtimes (does not embed engines):
-
-1. `POST /v1/compare` — Zen via platform, then Kogito via platform (or `mode=direct-kogito` for Quarkus HTTP)
-2. `POST /v1/compare/benchmark` — sequential iterations with p50/p95 wall timings
-3. `GET /v1/compare/notes` — ease of implementation / execution speed / hot reload notes
-4. `POST /v1/compare/hot-reload/probe` — before/after stamp when editing JDM packs or `LoungeAccess.dmn`
+| Surface | Path |
+|---------|------|
+| FastAPI | `POST /v1/compare` — Zen then Kogito on the same facts; decisions + wall timings |
+| Web UI | **Compare engines** tab — sample scenario chips, side-by-side cards, “Run all samples” table |
+| Spring | `apps/spring-compare` on **8082** — RestClient bake-off (`/v1/compare`, benchmark, notes, hot-reload probe) |
 
 See `apps/spring-compare/README.md`.
 
@@ -134,6 +133,7 @@ Optional header `X-Role: viewer | author | approver | admin`.
 ### Runtime
 
 - `POST /v1/evaluate`
+- `POST /v1/compare` — Zen then Kogito; side-by-side decisions + wall timings
 - `POST /v1/explain`
 - `POST /v1/simulate`
 - `POST /v1/testgen` — max_cases default 50, hard max 500
