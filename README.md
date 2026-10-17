@@ -8,6 +8,16 @@ We do **not** invent another rules interpreter. We productize an open-source one
 
 ---
 
+## 🤖 For AI Agents (Cursor / Claude)
+
+**Setting up from a git URL?** → Read **[AGENT_SETUP.md](AGENT_SETUP.md)** first.
+
+This repository includes comprehensive skills for running and debugging code from scratch:
+- **[.cursor/skills/run-code/SKILL.md](.cursor/skills/run-code/SKILL.md)** - Environment setup, execution (8+ languages)
+- **[.cursor/skills/debug-execution/SKILL.md](.cursor/skills/debug-execution/SKILL.md)** - Systematic debugging and troubleshooting
+
+---
+
 ## Product at a glance
 
 | Design time | Runtime |
