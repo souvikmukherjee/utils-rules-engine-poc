@@ -137,6 +137,20 @@ def init_schema(conn: sqlite3.Connection) -> None:
 
         CREATE INDEX IF NOT EXISTS idx_audit_subject
             ON audit_events(tenant_id, domain, subject_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS benchmark_runs (
+            run_id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL DEFAULT 'default',
+            kind TEXT NOT NULL,
+            label TEXT,
+            params_json TEXT NOT NULL,
+            result_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'completed',
+            created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_benchmark_created
+            ON benchmark_runs(tenant_id, created_at DESC);
         """
     )
     _migrate_columns(conn)

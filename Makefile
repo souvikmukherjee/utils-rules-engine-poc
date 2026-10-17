@@ -1,4 +1,4 @@
-.PHONY: install-py install-web install-kogito install-spring-compare api web kogito spring-compare test test-spring-compare
+.PHONY: install-py install-web install-kogito install-spring-compare api web kogito spring-compare test test-spring-compare compare-engines benchmark-matrix
 
 install-py:
 	python3 -m venv .venv || true
@@ -41,3 +41,13 @@ test:
 
 test-spring-compare:
 	cd apps/spring-compare && mvn -B -q test
+
+compare-engines:
+	@if [ -f .venv/bin/activate ]; then . .venv/bin/activate; fi; \
+	PYTHONPATH=packages/rules_engine/src:apps/api/src \
+	python3 scripts/compare_engines_100.py
+
+benchmark-matrix:
+	@if [ -f .venv/bin/activate ]; then . .venv/bin/activate; fi; \
+	PYTHONPATH=packages/rules_engine/src:apps/api/src \
+	python3 scripts/seed_benchmark_matrix.py
