@@ -1,4 +1,4 @@
-.PHONY: install-py install-web api web kogito test compare-engines benchmark-matrix
+.PHONY: install-py install-web install-kogito install-spring-compare api web kogito spring-compare test test-spring-compare compare-engines benchmark-matrix
 
 install-py:
 	python3 -m venv .venv || true
@@ -14,6 +14,9 @@ install-web:
 install-kogito:
 	cd apps/kogito && mvn -B -q -DskipTests package
 
+install-spring-compare:
+	cd apps/spring-compare && mvn -B -q -DskipTests package
+
 api:
 	@if [ -f .venv/bin/activate ]; then . .venv/bin/activate; fi; \
 	PYTHONPATH=packages/rules_engine/src:apps/api/src \
@@ -28,10 +31,16 @@ web:
 kogito:
 	cd apps/kogito && mvn -q -DskipTests quarkus:dev -Dquarkus.http.port=8081
 
+spring-compare:
+	cd apps/spring-compare && mvn -q spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.port=8082"
+
 test:
 	@if [ -f .venv/bin/activate ]; then . .venv/bin/activate; fi; \
 	PYTHONPATH=packages/rules_engine/src:apps/api/src \
 	pytest packages/rules_engine/tests apps/api/tests -q
+
+test-spring-compare:
+	cd apps/spring-compare && mvn -B -q test
 
 compare-engines:
 	@if [ -f .venv/bin/activate ]; then . .venv/bin/activate; fi; \

@@ -135,7 +135,7 @@ How-to: [docs/HOWTO-BENCHMARK.md](docs/HOWTO-BENCHMARK.md).
 ┌─────────────────────────────────────────────────────────────┐
 │  Axiom UI (Next.js)                                         │
 │  Personas · Domains · Evaluate · Author (JDM Editor) ·      │
-│  Simulate · Benchmark · Releases · Audit                    │
+│  Simulate · Compare · Benchmark · Releases · Audit          │
 └───────────────────────────┬─────────────────────────────────┘
                             │  /api → FastAPI
 ┌───────────────────────────▼─────────────────────────────────┐
@@ -207,17 +207,19 @@ Deeper reading: [Product vision](docs/PRODUCT.md) · [Architecture](docs/ARCHITE
 ### Install
 
 ```bash
-make install-py      # venv + rules_engine + API + zen-engine
-make install-web     # pnpm deps (Next + JDM editor)
-make install-kogito  # package apps/kogito Quarkus service
+make install-py              # venv + rules_engine + API + zen-engine
+make install-web             # pnpm deps (Next + JDM editor)
+make install-kogito          # package apps/kogito Quarkus service
+make install-spring-compare  # package Spring Boot Zen↔Kogito compare harness
 ```
 
 ### Run
 
 ```bash
-make kogito        # http://127.0.0.1:8081  — Kogito LoungeAccess DMN
-make api           # http://127.0.0.1:8000  — OpenAPI at /docs
-make web           # http://127.0.0.1:3000  — Axiom UI (toggle Zen | Kogito)
+make kogito           # http://127.0.0.1:8081  — Kogito LoungeAccess DMN
+make api              # http://127.0.0.1:8000  — OpenAPI at /docs
+make web              # http://127.0.0.1:3000  — Axiom UI (toggle Zen | Kogito)
+make spring-compare   # http://127.0.0.1:8082  — Spring: call Zen then Kogito, compare
 ```
 
 Manual equivalent:
@@ -274,8 +276,22 @@ curl -s localhost:8000/v1/benchmark/run -H 'content-type: application/json' \
 ### Tests
 
 ```bash
-make test
+make test                 # Python (rules_engine + API)
+make test-spring-compare  # Spring Boot compare harness
 ```
+
+### Spring Boot engine bake-off
+
+`apps/spring-compare` is a small Spring Boot app that calls **Zen then Kogito** (via the FastAPI platform, or Kogito directly) and reports wall latency, decision agreement, and notes on ease of implementation / hot reload.
+
+```bash
+make kogito & make api & make spring-compare
+curl -s localhost:8082/v1/compare/health | jq .
+curl -s localhost:8082/v1/compare -H 'content-type: application/json' -d '{}' | jq .diff
+curl -s localhost:8082/v1/compare/notes | jq .dimensions
+```
+
+Details: [`apps/spring-compare/README.md`](apps/spring-compare/README.md).
 
 ### Useful API calls
 
@@ -334,6 +350,7 @@ SQLite by default (`apps/api/data/rules.db`). Optional `DATABASE_URL`:
 | Method | Path | Purpose |
 |--------|------|---------|
 | `POST` | `/v1/evaluate` | Decision + effects + Zen/platform trace |
+| `POST` | `/v1/compare` | Zen then Kogito — decisions + wall timings |
 | `POST` | `/v1/explain` | Human-readable reasons |
 | `POST` | `/v1/simulate` | Fixture batch; optional version diff |
 | `POST` | `/v1/testgen` | Permutation cases from table inputs |

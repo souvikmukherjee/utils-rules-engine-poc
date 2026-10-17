@@ -8,6 +8,7 @@
 | `apps/api` | Auth hooks, persistence, promotion, entitlement commits, change-record gates |
 | `packages/rules_engine` | **GoRules Zen adapter**: run JDM, map outputs → effects, honor entitlements, deny-wins, explain, testgen |
 | `apps/kogito` | **Kogito** (parallel): Quarkus + Drools DMN (`LoungeAccess.dmn`); REST at `:8081/LoungeAccess` |
+| `apps/spring-compare` | **Spring Boot bake-off**: calls Zen then Kogito sequentially; latency, decision diff, hot-reload probes |
 | `packages/rules_schema` | Shared JSON Schema for pack envelopes (`domain`/`lifecycle` + JDM `nodes`/`edges`) |
 
 Authoring stays on the shared JDM UI. Runtime evaluation is selectable via `engine: zen | kogito` (UI toggle / request body). Zen evaluates the stored JDM; Kogito evaluates the seeded DMN model (facts mapped by the API adapter).
@@ -20,7 +21,19 @@ flowchart LR
   API --> KogitoClient[kogito HTTP client]
   ZenAdapter --> Zen[GoRules Zen]
   KogitoClient --> KogitoSvc[apps/kogito Quarkus DMN]
+  Spring[apps/spring-compare] --> API
+  Spring --> KogitoSvc
 ```
+
+### Engine compare (platform + UI + Spring)
+
+| Surface | Path |
+|---------|------|
+| FastAPI | `POST /v1/compare` — Zen then Kogito on the same facts; decisions + wall timings |
+| Web UI | **Compare engines** tab — sample scenario chips, side-by-side cards, “Run all samples” table |
+| Spring | `apps/spring-compare` on **8082** — RestClient bake-off (`/v1/compare`, benchmark, notes, hot-reload probe) |
+
+See `apps/spring-compare/README.md`.
 
 ## Rule state — three axes
 
@@ -120,6 +133,7 @@ Optional header `X-Role: viewer | author | approver | admin`.
 ### Runtime
 
 - `POST /v1/evaluate`
+- `POST /v1/compare` — Zen then Kogito; side-by-side decisions + wall timings
 - `POST /v1/explain`
 - `POST /v1/simulate`
 - `POST /v1/testgen` — max_cases default 50, hard max 500

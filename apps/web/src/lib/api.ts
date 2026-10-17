@@ -328,6 +328,50 @@ export async function evaluate(payload: EvaluatePayload): Promise<EvaluateResult
   });
 }
 
+export type CompareEngineLeg = {
+  engine: RulesEngine;
+  ok: boolean;
+  wall_millis: number;
+  decision: string | null;
+  result: EvaluateResult | null;
+  error: string | null;
+};
+
+export type CompareDiff = {
+  both_ok: boolean;
+  decisions_agree: boolean;
+  zen_decision: string | null;
+  kogito_decision: string | null;
+  wall_delta_millis: number | null;
+  faster_engine: "zen" | "kogito" | "tie" | null;
+  caveats: string[];
+};
+
+export type CompareResult = {
+  zen: CompareEngineLeg;
+  kogito: CompareEngineLeg;
+  diff: CompareDiff;
+  total_wall_millis: number;
+  notes: string[];
+};
+
+/** Fire the same facts through Zen then Kogito (ignores header engine toggle). */
+export async function compareEngines(
+  payload: EvaluatePayload,
+): Promise<CompareResult> {
+  return request<CompareResult>("/v1/compare", {
+    method: "POST",
+    body: JSON.stringify({
+      domain: payload.domain ?? "lounge",
+      pack_id: payload.pack_id ?? "lounge-access",
+      environment: payload.environment ?? "production",
+      subject_id: payload.subject_id,
+      facts: payload.facts,
+      as_of: payload.as_of ?? null,
+    }),
+  });
+}
+
 export async function searchAudit(
   subjectId: string,
   domain = "lounge",

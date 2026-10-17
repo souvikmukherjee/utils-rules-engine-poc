@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AuditPanel } from "@/components/AuditPanel";
 import { AuthorPanel } from "@/components/AuthorPanel";
 import { BenchmarkPanel } from "@/components/BenchmarkPanel";
+import { ComparePanel } from "@/components/ComparePanel";
 import { EngineToggle } from "@/components/EngineToggle";
 import { EvaluatePanel } from "@/components/EvaluatePanel";
 import { ReleasesPanel } from "@/components/ReleasesPanel";
@@ -14,6 +15,7 @@ import { WorkspaceProvider, useWorkspace } from "@/lib/workspace";
 
 type Tab =
   | "evaluate"
+  | "compare"
   | "author"
   | "simulate"
   | "benchmark"
@@ -22,6 +24,7 @@ type Tab =
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "evaluate", label: "Evaluate" },
+  { id: "compare", label: "Compare engines" },
   { id: "author", label: "Author · Graph" },
   { id: "simulate", label: "Simulate" },
   { id: "benchmark", label: "Benchmark" },
@@ -31,6 +34,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 const TITLES: Record<Tab, string> = {
   evaluate: "Evaluate",
+  compare: "Compare · Zen vs Kogito",
   author: "Author · JDM decision graph",
   simulate: "Simulate",
   benchmark: "Scale benchmark · Zen vs DMN table",
@@ -42,7 +46,11 @@ function HomeInner() {
   const [tab, setTab] = useState<Tab>("evaluate");
   const { domain } = useWorkspace();
   const { engine } = useEngine();
-  const wide = tab === "author" || tab === "evaluate" || tab === "benchmark";
+  const wide =
+    tab === "author" ||
+    tab === "evaluate" ||
+    tab === "compare" ||
+    tab === "benchmark";
 
   return (
     <div className="hero-mesh grain min-h-screen">
@@ -105,6 +113,7 @@ function HomeInner() {
             ) : null}
           </h2>
           {tab === "evaluate" && <EvaluatePanel />}
+          {tab === "compare" && <ComparePanel />}
           {tab === "author" && <AuthorPanel />}
           {tab === "simulate" && <SimulatePanel />}
           {tab === "benchmark" && <BenchmarkPanel />}
