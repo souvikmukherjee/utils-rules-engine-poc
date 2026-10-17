@@ -210,6 +210,40 @@ list_checks() {
   echo "Check names reported on $REPO@$branch ($sha):"
   gh api "repos/$REPO/commits/$sha/check-runs" --paginate --jq '.check_runs[].name' | sort -u | sed 's/^/  /'
   echo
+  echo "Pull-request-only workflows (will not appear above):"
+  python3 - "$REPO_ROOT/.github/workflows" <<'PY'
+import json, sys, os, yaml
+
+workflows_dir = sys.argv[1]
+pr_only_jobs = set()
+
+for filename in os.listdir(workflows_dir):
+    if not filename.endswith(('.yml', '.yaml')):
+        continue
+    filepath = os.path.join(workflows_dir, filename)
+    try:
+        with open(filepath) as f:
+            workflow = yaml.safe_load(f)
+        if not workflow:
+            continue
+        # 'on' is parsed as True (YAML boolean keyword)
+        on_config = workflow.get('on', workflow.get(True, {}))
+        if isinstance(on_config, str):
+            continue
+        # PR-only if it has pull_request but not push
+        has_pr = 'pull_request' in on_config or 'pull_request_target' in on_config
+        has_push = 'push' in on_config
+        if has_pr and not has_push:
+            for job_name, job_config in workflow.get('jobs', {}).items():
+                job_display = job_config.get('name', job_name)
+                pr_only_jobs.add(job_display)
+    except:
+        pass
+
+for job in sorted(pr_only_jobs):
+    print(f"  {job}")
+PY
+  echo
   echo "Required contexts in .github/rulesets/main-$PROFILE.json:"
   python3 - "$(ruleset_file)" <<'PY'
 import json, sys
@@ -221,7 +255,8 @@ for rule in ruleset["rules"]:
             print(f"  {check['context']}")
 PY
   echo
-  echo "Every required context must appear in the list above, or merges will block forever."
+  echo "Every required context must appear in one of the lists above, or merges will block forever."
+  echo "Pull-request-only workflows are valid required checks and will run on PRs."
 }
 
 if [[ "$MODE" == list-checks ]]; then

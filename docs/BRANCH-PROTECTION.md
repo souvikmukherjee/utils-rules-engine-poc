@@ -78,14 +78,18 @@ scripts/apply_branch_protection.sh --dry-run
 scripts/apply_branch_protection.sh --profile solo
 ```
 
-Do this **after** this change has merged and the workflows have run on `main`
-at least once. Required status checks are matched by name: if a name in the
+Do this **after** this change has merged and workflows that run on `main` have
+run at least once. Required status checks are matched by name: if a name in the
 ruleset never gets reported, pull requests wait on it forever. Verify the names
 line up with what GitHub actually saw:
 
 ```bash
 scripts/apply_branch_protection.sh --list-checks
 ```
+
+Pull-request-only workflows (like `Dependency review`) won't appear in the
+default branch check history, but they're still valid required checks that will
+run on PRs.
 
 The script is idempotent — it updates the ruleset in place if one with the same
 name already exists — and it also applies the repository-level settings that
