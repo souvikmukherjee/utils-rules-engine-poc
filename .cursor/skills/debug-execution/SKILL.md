@@ -682,14 +682,16 @@ du -sh directory/*
 
 **Solutions:**
 ```bash
-# Clear temporary files
-rm -rf /tmp/*
+# Clear workspace-specific temporary files only
+# NEVER run rm -rf /tmp/* - it breaks shared system resources
+find . -name "*.tmp" -type f -delete
+find . -name ".cache" -type d -prune -exec rm -rf '{}' +
 
 # Clear node_modules if needed
 find . -name "node_modules" -type d -prune -exec rm -rf '{}' +
 
 # Clear build artifacts
-rm -rf build/ dist/ .cache/
+rm -rf build/ dist/ out/ .next/
 
 # Clean package manager caches
 npm cache clean --force
