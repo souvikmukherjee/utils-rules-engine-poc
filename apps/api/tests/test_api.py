@@ -71,6 +71,43 @@ def test_evaluate_gold_via_kogito(client: TestClient, monkeypatch: pytest.Monkey
     assert any(e["status"] == "matched" for e in body["trace"]["entries"])
 
 
+def test_compare_zen_then_kogito(client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    from rules_api import kogito_client
+
+    monkeypatch.setattr(
+        kogito_client,
+        "call_lounge_access",
+        lambda context, timeout=10.0: {
+            "MembershipTier": "gold",
+            "Eligibility": "allow",
+            "LoungeClass": "domestic",
+            "MatchedRule": "tier-gold-lounge",
+            "CompanionsAllowed": 0,
+        },
+    )
+    resp = client.post(
+        "/v1/compare",
+        json={
+            "subject_id": "FF-COMPARE",
+            "facts": {
+                "membership": {"tier": "gold"},
+                "booking": {"cabin": "economy"},
+            },
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["zen"]["ok"] is True
+    assert body["kogito"]["ok"] is True
+    assert body["zen"]["decision"] == "allow"
+    assert body["kogito"]["decision"] == "allow"
+    assert body["diff"]["both_ok"] is True
+    assert body["diff"]["decisions_agree"] is True
+    assert body["zen"]["wall_millis"] >= 0
+    assert body["kogito"]["wall_millis"] >= 0
+    assert body["total_wall_millis"] >= body["zen"]["wall_millis"]
+
+
 def test_kogito_seasonal_deny(client: TestClient, monkeypatch: pytest.MonkeyPatch):
     from rules_api import kogito_client
 

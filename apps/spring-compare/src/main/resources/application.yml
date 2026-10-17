@@ -1,0 +1,28 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: axiom-spring-compare
+
+axiom:
+  compare:
+    platform-url: ${PLATFORM_URL:http://127.0.0.1:8000}
+    kogito-url: ${KOGITO_URL:http://127.0.0.1:8081}
+    connect-timeout: 2s
+    read-timeout: 15s
+    default-benchmark-iterations: 20
+    max-benchmark-iterations: 200
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.axiom.compare: INFO

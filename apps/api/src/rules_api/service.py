@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -288,6 +289,141 @@ def run_evaluate(
             tenant_id=tenant_id,
         )
     return body
+
+
+def _compare_leg(
+    store: RulesStore,
+    *,
+    engine: EngineName,
+    domain: str,
+    pack_id: str,
+    subject_id: str,
+    facts: dict[str, Any],
+    environment: str,
+    as_of: str | None,
+    tenant_id: str,
+) -> dict[str, Any]:
+    started = time.perf_counter()
+    try:
+        result = run_evaluate(
+            store,
+            domain=domain,
+            pack_id=pack_id,
+            subject_id=subject_id,
+            facts=facts,
+            environment=environment,
+            as_of=as_of,
+            commit_entitlements=False,
+            tenant_id=tenant_id,
+            engine=engine,
+        )
+        wall_millis = round((time.perf_counter() - started) * 1000.0, 2)
+        return {
+            "engine": engine,
+            "ok": True,
+            "wall_millis": wall_millis,
+            "decision": result.get("decision"),
+            "result": result,
+            "error": None,
+        }
+    except Exception as exc:  # noqa: BLE001 — surface per-engine errors in UI
+        wall_millis = round((time.perf_counter() - started) * 1000.0, 2)
+        return {
+            "engine": engine,
+            "ok": False,
+            "wall_millis": wall_millis,
+            "decision": None,
+            "result": None,
+            "error": str(exc),
+        }
+
+
+def run_compare(
+    store: RulesStore,
+    *,
+    domain: str,
+    pack_id: str,
+    subject_id: str,
+    facts: dict[str, Any],
+    environment: str,
+    as_of: str | None,
+    tenant_id: str = "default",
+) -> dict[str, Any]:
+    """Evaluate the same request on Zen then Kogito; return side-by-side timings."""
+    total_started = time.perf_counter()
+    zen = _compare_leg(
+        store,
+        engine="zen",
+        domain=domain,
+        pack_id=pack_id,
+        subject_id=subject_id,
+        facts=facts,
+        environment=environment,
+        as_of=as_of,
+        tenant_id=tenant_id,
+    )
+    kogito = _compare_leg(
+        store,
+        engine="kogito",
+        domain=domain,
+        pack_id=pack_id,
+        subject_id=subject_id,
+        facts=facts,
+        environment=environment,
+        as_of=as_of,
+        tenant_id=tenant_id,
+    )
+
+    both_ok = bool(zen["ok"] and kogito["ok"])
+    zen_decision = zen.get("decision")
+    kogito_decision = kogito.get("decision")
+    decisions_agree = (
+        both_ok
+        and zen_decision is not None
+        and str(zen_decision).lower() == str(kogito_decision).lower()
+    )
+
+    faster: str | None = None
+    wall_delta: float | None = None
+    if both_ok:
+        z_ms = float(zen["wall_millis"])
+        k_ms = float(kogito["wall_millis"])
+        wall_delta = round(abs(z_ms - k_ms), 2)
+        if z_ms < k_ms:
+            faster = "zen"
+        elif k_ms < z_ms:
+            faster = "kogito"
+        else:
+            faster = "tie"
+
+    caveats = [
+        "Zen evaluates published JDM packs; Kogito evaluates the seeded LoungeAccess.dmn — models are not feature-parity.",
+        "Wall times include platform overhead (pack resolve, entitlements, mapping).",
+    ]
+    notes = [
+        "Engines were invoked sequentially: Zen first, then Kogito.",
+        "commit_entitlements is forced off for compare runs.",
+    ]
+    if both_ok and not decisions_agree:
+        notes.append(
+            "Decisions differ — often expected for cabin-heavy lounge scenarios where JDM is richer than DMN."
+        )
+
+    return {
+        "zen": zen,
+        "kogito": kogito,
+        "diff": {
+            "both_ok": both_ok,
+            "decisions_agree": decisions_agree,
+            "zen_decision": zen_decision,
+            "kogito_decision": kogito_decision,
+            "wall_delta_millis": wall_delta,
+            "faster_engine": faster,
+            "caveats": caveats,
+        },
+        "total_wall_millis": round((time.perf_counter() - total_started) * 1000.0, 2),
+        "notes": notes,
+    }
 
 
 def run_explain(
