@@ -238,7 +238,7 @@ echo "Repository settings:"
 step "squash-only merges, auto-delete branches" merge_settings
 step "secret scanning + push protection" secret_scanning
 optional_step "secret scanning validity + non-provider patterns" secret_scanning_extras
-step "Dependabot alerts" send PUT "repos/$REPO/vulnerability-alerts"
+step "Dependabot alerts (also enables the dependency graph)" send PUT "repos/$REPO/vulnerability-alerts"
 step "Dependabot security updates" send PUT "repos/$REPO/automated-security-fixes"
 step "private vulnerability reporting" send PUT "repos/$REPO/private-vulnerability-reporting"
 step "read-only default GITHUB_TOKEN" workflow_permissions

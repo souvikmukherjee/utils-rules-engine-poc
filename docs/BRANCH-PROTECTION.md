@@ -64,6 +64,12 @@ Both profiles apply to the default branch (`~DEFAULT_BRANCH`) with an empty
 Branch protection is server-side state, so the checked-in JSON has to be pushed
 to GitHub. Run this once, with a token that has admin rights on the repository:
 
+> The dependency graph is currently **disabled** on this repository, so the
+> `Dependency review` check fails with "Dependency review is not supported on
+> this repository" until the script below runs: enabling Dependabot alerts also
+> enables the graph. Run the script before you make that check required, or
+> enable it by hand under Settings > Code security.
+
 ```bash
 # Preview every API call without changing anything.
 scripts/apply_branch_protection.sh --dry-run

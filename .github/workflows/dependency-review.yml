@@ -22,6 +22,10 @@ jobs:
         with:
           persist-credentials: false
 
+      # Needs the repository dependency graph; without it the action fails with
+      # "Dependency review is not supported on this repository". Enabling
+      # Dependabot alerts turns the graph on, which
+      # scripts/apply_branch_protection.sh does.
       - name: Review dependency changes
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
