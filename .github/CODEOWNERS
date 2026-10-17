@@ -1,0 +1,8 @@
+# Code owners are requested for review automatically, and the branch protection
+# ruleset requires an owner approval before anything merges into main.
+* @souvikmukherjee
+
+# CI, security scanning, and branch protection config: changes here weaken or
+# strengthen the guard rails for everything else, so they stay owner-reviewed.
+/.github/ @souvikmukherjee
+/scripts/apply_branch_protection.sh @souvikmukherjee
