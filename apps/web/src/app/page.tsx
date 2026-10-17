@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AuditPanel } from "@/components/AuditPanel";
 import { AuthorPanel } from "@/components/AuthorPanel";
+import { BenchmarkPanel } from "@/components/BenchmarkPanel";
 import { EngineToggle } from "@/components/EngineToggle";
 import { EvaluatePanel } from "@/components/EvaluatePanel";
 import { ReleasesPanel } from "@/components/ReleasesPanel";
@@ -11,12 +12,19 @@ import { WorkspaceBar } from "@/components/WorkspaceBar";
 import { useEngine } from "@/lib/engine";
 import { WorkspaceProvider, useWorkspace } from "@/lib/workspace";
 
-type Tab = "evaluate" | "author" | "simulate" | "releases" | "audit";
+type Tab =
+  | "evaluate"
+  | "author"
+  | "simulate"
+  | "benchmark"
+  | "releases"
+  | "audit";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "evaluate", label: "Evaluate" },
   { id: "author", label: "Author · Graph" },
   { id: "simulate", label: "Simulate" },
+  { id: "benchmark", label: "Benchmark" },
   { id: "releases", label: "Releases" },
   { id: "audit", label: "Audit" },
 ];
@@ -25,6 +33,7 @@ const TITLES: Record<Tab, string> = {
   evaluate: "Evaluate",
   author: "Author · JDM decision graph",
   simulate: "Simulate",
+  benchmark: "Scale benchmark · Zen vs DMN table",
   releases: "Releases & change management",
   audit: "Audit & entitlements",
 };
@@ -33,7 +42,7 @@ function HomeInner() {
   const [tab, setTab] = useState<Tab>("evaluate");
   const { domain } = useWorkspace();
   const { engine } = useEngine();
-  const wide = tab === "author" || tab === "evaluate";
+  const wide = tab === "author" || tab === "evaluate" || tab === "benchmark";
 
   return (
     <div className="hero-mesh grain min-h-screen">
@@ -98,6 +107,7 @@ function HomeInner() {
           {tab === "evaluate" && <EvaluatePanel />}
           {tab === "author" && <AuthorPanel />}
           {tab === "simulate" && <SimulatePanel />}
+          {tab === "benchmark" && <BenchmarkPanel />}
           {tab === "releases" && <ReleasesPanel />}
           {tab === "audit" && <AuditPanel />}
         </section>

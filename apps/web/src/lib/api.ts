@@ -507,3 +507,98 @@ export async function testgen(
     role,
   });
 }
+
+export type BenchmarkEngine = "zen" | "dmn_table";
+
+export type BenchmarkCompareRow = {
+  run_id?: string;
+  label?: string | null;
+  created_at?: string;
+  fingerprint?: string;
+  column_count: number;
+  rule_count: number;
+  fire_count: number;
+  seed: number;
+  variables: string[];
+  sample_outcomes: string[];
+  zen_elapsed_ms?: number | null;
+  zen_throughput_fps?: number | null;
+  zen_avg_ms?: number | null;
+  zen_histogram?: Record<string, number>;
+  dmn_elapsed_ms?: number | null;
+  dmn_throughput_fps?: number | null;
+  dmn_avg_ms?: number | null;
+  dmn_histogram?: Record<string, number>;
+  parity_pct?: number | null;
+  parity_sample?: number | null;
+};
+
+export type BenchmarkCompareResult = {
+  generated_at: string;
+  row_count: number;
+  presets: {
+    rule_counts: number[];
+    fire_counts: number[];
+    column_counts: number[];
+  };
+  summary: {
+    cells: number;
+    zen_median_fps: number | null;
+    dmn_table_median_fps: number | null;
+    parity_min_pct: number | null;
+    parity_max_pct: number | null;
+    speedup_dmn_vs_zen_median: number | null;
+  };
+  rows: BenchmarkCompareRow[];
+};
+
+export type BenchmarkRunPayload = {
+  column_count: number;
+  rule_count: number;
+  fire_count: number;
+  seed?: number;
+  values_per_column?: number;
+  engines?: BenchmarkEngine[];
+  max_work?: number;
+  label?: string;
+};
+
+export type BenchmarkMatrixPayload = {
+  column_count?: number;
+  rule_counts?: number[];
+  fire_counts?: number[];
+  seed?: number;
+  engines?: BenchmarkEngine[];
+  max_work?: number;
+  skip_over_cap?: boolean;
+  label?: string;
+};
+
+export async function getBenchmarkCompare(): Promise<BenchmarkCompareResult> {
+  return request<BenchmarkCompareResult>("/v1/benchmark/compare");
+}
+
+export async function listBenchmarkRuns(): Promise<{
+  runs: Record<string, unknown>[];
+  count: number;
+}> {
+  return request("/v1/benchmark/runs");
+}
+
+export async function runBenchmark(
+  payload: BenchmarkRunPayload,
+): Promise<Record<string, unknown>> {
+  return request("/v1/benchmark/run", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function runBenchmarkMatrix(
+  payload: BenchmarkMatrixPayload,
+): Promise<Record<string, unknown>> {
+  return request("/v1/benchmark/matrix", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

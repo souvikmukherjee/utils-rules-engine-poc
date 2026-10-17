@@ -1,4 +1,4 @@
-.PHONY: install-py install-web api web kogito test compare-engines
+.PHONY: install-py install-web api web kogito test compare-engines benchmark-matrix
 
 install-py:
 	python3 -m venv .venv || true
@@ -37,3 +37,8 @@ compare-engines:
 	@if [ -f .venv/bin/activate ]; then . .venv/bin/activate; fi; \
 	PYTHONPATH=packages/rules_engine/src:apps/api/src \
 	python3 scripts/compare_engines_100.py
+
+benchmark-matrix:
+	@if [ -f .venv/bin/activate ]; then . .venv/bin/activate; fi; \
+	PYTHONPATH=packages/rules_engine/src:apps/api/src \
+	python3 scripts/seed_benchmark_matrix.py

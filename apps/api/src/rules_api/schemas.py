@@ -216,3 +216,35 @@ class ComplianceExportOut(BaseModel):
     subject_id: str
     entitlements: list[dict[str, Any]]
     audit_events: list[dict[str, Any]]
+
+
+class BenchmarkRunRequest(BaseModel):
+    """Single synthetic scale cell: columns × rules × fires."""
+
+    column_count: int = Field(default=10, ge=1, le=50)
+    rule_count: int = Field(default=100, ge=1, le=10_000)
+    fire_count: int = Field(default=1_000, ge=1, le=1_000_000)
+    seed: int = 42
+    values_per_column: int = Field(default=8, ge=2, le=32)
+    engines: list[Literal["zen", "dmn_table"]] = Field(
+        default_factory=lambda: ["zen", "dmn_table"]
+    )
+    max_work: int = Field(default=200_000_000, ge=1)
+    label: str | None = None
+    tenant_id: str = "default"
+
+
+class BenchmarkMatrixRequest(BaseModel):
+    """Preset grid: rule_counts × fire_counts at a fixed column_count."""
+
+    column_count: int = Field(default=10, ge=1, le=50)
+    rule_counts: list[int] = Field(default_factory=lambda: [100, 1_000, 10_000])
+    fire_counts: list[int] = Field(default_factory=lambda: [1_000, 10_000, 1_000_000])
+    seed: int = 42
+    engines: list[Literal["zen", "dmn_table"]] = Field(
+        default_factory=lambda: ["zen", "dmn_table"]
+    )
+    max_work: int = Field(default=200_000_000, ge=1)
+    skip_over_cap: bool = True
+    label: str | None = "preset-matrix"
+    tenant_id: str = "default"

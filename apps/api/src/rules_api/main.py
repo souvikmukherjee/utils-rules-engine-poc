@@ -14,8 +14,16 @@ from rules_api.rbac import (
     assert_can_transition,
     require_role,
 )
+from rules_api.benchmark_service import (
+    comparison_payload,
+    execute_matrix,
+    execute_single,
+)
+from rules_api.benchmark_store import BenchmarkStore
 from rules_api.schemas import (
     AuditEventOut,
+    BenchmarkMatrixRequest,
+    BenchmarkRunRequest,
     ComplianceExportOut,
     CreatePackVersionRequest,
     EntitlementOut,
@@ -49,14 +57,23 @@ from rules_api.service import (
 from rules_api.store import RulesStore
 
 _store: RulesStore | None = None
+_bench_store: BenchmarkStore | None = None
+_conn_ref: Any = None
 
 
 def get_store() -> RulesStore:
-    global _store
+    global _store, _bench_store, _conn_ref
     if _store is None:
-        _conn, _store = open_store()
-        ensure_seeded(_conn)
+        _conn_ref, _store = open_store()
+        ensure_seeded(_conn_ref)
+        _bench_store = BenchmarkStore(_conn_ref)
     return _store
+
+
+def get_bench_store() -> BenchmarkStore:
+    get_store()
+    assert _bench_store is not None
+    return _bench_store
 
 
 @asynccontextmanager
@@ -441,3 +458,72 @@ def put_release(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/benchmark/compare")
+def benchmark_compare(
+    tenant_id: str = Query(DEFAULT_TENANT_ID),
+    limit: int = Query(50, ge=1, le=200),
+) -> dict[str, Any]:
+    """Objective comparison table from persisted benchmark runs (UI home view)."""
+    bench = get_bench_store()
+    runs = bench.list_runs(tenant_id=tenant_id, limit=limit)
+    return comparison_payload(runs)
+
+
+@app.get("/v1/benchmark/runs")
+def benchmark_list_runs(
+    tenant_id: str = Query(DEFAULT_TENANT_ID),
+    kind: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+) -> dict[str, Any]:
+    bench = get_bench_store()
+    runs = bench.list_runs(tenant_id=tenant_id, kind=kind, limit=limit)
+    return {"runs": runs, "count": len(runs)}
+
+
+@app.get("/v1/benchmark/runs/{run_id}")
+def benchmark_get_run(
+    run_id: str,
+    tenant_id: str = Query(DEFAULT_TENANT_ID),
+) -> dict[str, Any]:
+    bench = get_bench_store()
+    row = bench.get_run(run_id, tenant_id=tenant_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Unknown run '{run_id}'")
+    return row
+
+
+@app.delete("/v1/benchmark/runs/{run_id}")
+def benchmark_delete_run(
+    run_id: str,
+    tenant_id: str = Query(DEFAULT_TENANT_ID),
+    role: str | None = Depends(require_role),
+) -> dict[str, Any]:
+    assert_can_author(role)
+    bench = get_bench_store()
+    ok = bench.delete_run(run_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"Unknown run '{run_id}'")
+    return {"deleted": True, "run_id": run_id}
+
+
+@app.post("/v1/benchmark/run")
+def benchmark_run(body: BenchmarkRunRequest) -> dict[str, Any]:
+    """Run one synthetic cell (columns × rules × fires) and persist the result."""
+    bench = get_bench_store()
+    try:
+        return execute_single(bench, body.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/benchmark/matrix")
+def benchmark_matrix(body: BenchmarkMatrixRequest) -> dict[str, Any]:
+    """Run the preset scale grid and persist it as one matrix run."""
+    bench = get_bench_store()
+    try:
+        return execute_matrix(bench, body.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
