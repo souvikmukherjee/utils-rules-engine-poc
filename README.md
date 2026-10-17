@@ -121,13 +121,21 @@ Durable grants live in an entitlement ledger. Retired rule text is never kept al
 
 ---
 
+### 6. Scale benchmark
+
+Open **Benchmark** to fire synthetic packs (100 / 1k / 10k rules × 1k / 10k / 1M fires) through Zen and a DMN-style FIRST table on identical generated variables and outcomes. Results are stored so the objective comparison is visible on every reload; change parameters and re-run anytime.
+
+How-to: [docs/HOWTO-BENCHMARK.md](docs/HOWTO-BENCHMARK.md).
+
+---
+
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Axiom UI (Next.js)                                         │
 │  Personas · Domains · Evaluate · Author (JDM Editor) ·      │
-│  Simulate · Releases · Audit                                │
+│  Simulate · Benchmark · Releases · Audit                    │
 └───────────────────────────┬─────────────────────────────────┘
                             │  /api → FastAPI
 ┌───────────────────────────▼─────────────────────────────────┐
@@ -180,10 +188,11 @@ packages/
 docs/
   PRODUCT.md           Product vision
   ARCHITECTURE.md      Deep architecture
+  HOWTO-BENCHMARK.md   Scale benchmark how-to (100/1k/10k × 1k/10k/1M)
   assets/              Screenshots for this README
 ```
 
-Deeper reading: [Product vision](docs/PRODUCT.md) · [Architecture](docs/ARCHITECTURE.md)
+Deeper reading: [Product vision](docs/PRODUCT.md) · [Architecture](docs/ARCHITECTURE.md) · [Benchmark how-to](docs/HOWTO-BENCHMARK.md)
 
 ---
 
@@ -231,6 +240,36 @@ pnpm install && pnpm dev:web
 3. **Evaluate** — try *Bronze · First cabin* and *Platinum · Economy*
 4. **Author · Graph** — open the lounge graph; click **Edit Table** on the decision-table node
 5. Switch persona to **Tom Barrett** · domain **Banking · credit** — same product, different graph
+
+### Scale benchmark (optional)
+
+Compare **Zen** vs a **DMN-style FIRST table** on synthetic packs (generated variables + outcomes), persist results, and load an objective table in the UI.
+
+```bash
+make api && make web
+make benchmark-matrix   # seed SQLite + artifacts/engine-comparison/benchmark_matrix_seed.json
+```
+
+Then open **Benchmark** at [http://127.0.0.1:3000](http://127.0.0.1:3000):
+
+| Axis | Presets |
+|------|---------|
+| Rules | 100 · 1,000 · 10,000 |
+| Fires | 1,000 · 10,000 · 1,000,000 |
+| Columns | tunable (default 10) |
+
+Anyone can change columns / rules / fires / seed / `max_work` and click **Run custom cell**, or run **Quick** / **Full matrix**. Results stay in SQLite (`benchmark_runs`) so reload still shows the comparison.
+
+Full walkthrough (API, storage, reading the table, work caps): **[docs/HOWTO-BENCHMARK.md](docs/HOWTO-BENCHMARK.md)**.
+
+```bash
+# Objective table the UI loads
+curl -s localhost:8000/v1/benchmark/compare | jq '.summary'
+
+# Custom parameters
+curl -s localhost:8000/v1/benchmark/run -H 'content-type: application/json' \
+  -d '{"column_count":12,"rule_count":250,"fire_count":2000,"seed":99}' | jq .
+```
 
 ### Tests
 
@@ -301,6 +340,18 @@ SQLite by default (`apps/api/data/rules.db`). Optional `DATABASE_URL`:
 | `GET` | `/v1/entitlements` | Subject ledger (`grandfathered` filter) |
 | `GET` | `/v1/audit` · `/v1/audit/{id}` | Search / fetch |
 | `GET` | `/v1/compliance/export` | Audit + entitlements dump |
+
+### Benchmark (scale lab)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/v1/benchmark/compare` | Objective table from persisted runs |
+| `GET` | `/v1/benchmark/runs` · `/v1/benchmark/runs/{id}` | List / fetch runs |
+| `POST` | `/v1/benchmark/run` | Custom cell (columns × rules × fires) |
+| `POST` | `/v1/benchmark/matrix` | Preset grid; skip over `max_work` |
+| `DELETE` | `/v1/benchmark/runs/{id}` | Delete a run (`X-Role: author+`) |
+
+See [docs/HOWTO-BENCHMARK.md](docs/HOWTO-BENCHMARK.md).
 
 ### Design-time
 
