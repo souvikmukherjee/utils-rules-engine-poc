@@ -36,7 +36,8 @@ apps/api/data/
 .idea/
 .vscode/
 *.swp
-.cursor/
+.cursor/*
+!.cursor/skills/
 
 # Logs / coverage
 *.log
