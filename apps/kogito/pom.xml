@@ -11,13 +11,13 @@
   <description>Kogito (Drools DMN on Quarkus) parallel engine for Axiom lounge eligibility</description>
 
   <properties>
-    <compiler-plugin.version>3.13.0</compiler-plugin.version>
+    <compiler-plugin.version>3.16.0</compiler-plugin.version>
     <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- Aligned with Kogito / Apache KIE 10.2.x -->
-    <quarkus.platform.version>3.27.2</quarkus.platform.version>
+    <quarkus.platform.version>3.40.1</quarkus.platform.version>
     <kogito.version>10.2.0</kogito.version>
-    <surefire-plugin.version>3.5.2</surefire-plugin.version>
+    <surefire-plugin.version>3.6.0</surefire-plugin.version>
   </properties>
 
   <dependencyManagement>
