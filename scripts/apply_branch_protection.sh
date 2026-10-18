@@ -212,33 +212,32 @@ list_checks() {
   echo
   echo "Pull-request-only workflows (will not appear above):"
   python3 - "$REPO_ROOT/.github/workflows" <<'PY'
-import json, sys, os, yaml
+import os, sys
+
+try:
+    import yaml
+except ImportError:
+    # PyYAML is not in the standard library, and this listing is informational,
+    # so degrade instead of taking down the rest of the output.
+    print("  (needs PyYAML to detect these: pip install pyyaml)")
+    raise SystemExit(0)
 
 workflows_dir = sys.argv[1]
 pr_only_jobs = set()
 
-for filename in os.listdir(workflows_dir):
+for filename in sorted(os.listdir(workflows_dir)):
     if not filename.endswith(('.yml', '.yaml')):
         continue
-    filepath = os.path.join(workflows_dir, filename)
-    try:
-        with open(filepath) as f:
-            workflow = yaml.safe_load(f)
-        if not workflow:
-            continue
-        # 'on' is parsed as True (YAML boolean keyword)
-        on_config = workflow.get('on', workflow.get(True, {}))
-        if isinstance(on_config, str):
-            continue
-        # PR-only if it has pull_request but not push
-        has_pr = 'pull_request' in on_config or 'pull_request_target' in on_config
-        has_push = 'push' in on_config
-        if has_pr and not has_push:
-            for job_name, job_config in workflow.get('jobs', {}).items():
-                job_display = job_config.get('name', job_name)
-                pr_only_jobs.add(job_display)
-    except:
-        pass
+    with open(os.path.join(workflows_dir, filename)) as handle:
+        workflow = yaml.safe_load(handle) or {}
+    # An unquoted `on:` key parses as the boolean True.
+    triggers = workflow.get('on', workflow.get(True)) or {}
+    if isinstance(triggers, str):
+        triggers = [triggers]
+    triggers = set(triggers)
+    if triggers & {'pull_request', 'pull_request_target'} and 'push' not in triggers:
+        for job_id, job in (workflow.get('jobs') or {}).items():
+            pr_only_jobs.add(job.get('name', job_id))
 
 for job in sorted(pr_only_jobs):
     print(f"  {job}")
