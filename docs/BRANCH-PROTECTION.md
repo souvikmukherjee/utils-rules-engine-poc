@@ -24,6 +24,10 @@ Supporting details:
   echoed into public logs, and uploads SARIF to code scanning. If it reports a
   false positive, add a scoped allowlist to a `.gitleaks.toml` at the repo root
   (with `[extend] useDefault = true`) rather than disabling the job.
+- **Dependency review** needs the repository dependency graph, which only an
+  admin can enable. The job probes for it first and reports a warning if it is
+  missing, so the check reflects "could not run" instead of hard-failing on a
+  setting a pull request cannot change. See the note in section 3.
 - **Actions are pinned to commit SHAs** with the version in a trailing comment. A
   tag can be moved to point at malicious code; a commit SHA cannot. Dependabot's
   `github-actions` ecosystem keeps the pins current.
@@ -64,11 +68,14 @@ Both profiles apply to the default branch (`~DEFAULT_BRANCH`) with an empty
 Branch protection is server-side state, so the checked-in JSON has to be pushed
 to GitHub. Run this once, with a token that has admin rights on the repository:
 
-> The dependency graph is currently **disabled** on this repository, so the
-> `Dependency review` check fails with "Dependency review is not supported on
-> this repository" until the script below runs: enabling Dependabot alerts also
-> enables the graph. Run the script before you make that check required, or
-> enable it by hand under Settings > Code security.
+> **Dependabot alerts and the dependency graph are currently disabled on this
+> repository**, and dependency review cannot work without the graph. Until the
+> script below runs, the `Dependency review` check passes with a warning
+> annotation and enforces nothing — it does not hard-fail, because no change to
+> a pull request could turn a repository setting back on, and a permanently red
+> required check would block every merge. Enabling Dependabot alerts also
+> enables the graph, so running the script (or flipping it under Settings >
+> Code security) is what makes this check real.
 
 ```bash
 # Preview every API call without changing anything.

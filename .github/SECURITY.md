@@ -39,10 +39,11 @@ Every pull request runs:
   for hard-coded secrets.
 - **Dependency review** (`.github/workflows/dependency-review.yml`), which blocks
   dependency changes that introduce known vulnerabilities of moderate severity or
-  higher.
+  higher. This one needs the repository dependency graph; it warns instead of
+  blocking while that is switched off.
 
 GitHub secret scanning with push protection, Dependabot alerts, and Dependabot
-security updates are enabled at the repository level. See
+security updates are applied by `scripts/apply_branch_protection.sh`. See
 [docs/BRANCH-PROTECTION.md](../docs/BRANCH-PROTECTION.md) for the branch protection
 rules that make these checks blocking.
 
