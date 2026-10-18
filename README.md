@@ -290,6 +290,16 @@ make test                 # Python (rules_engine + API)
 make test-spring-compare  # Spring Boot compare harness
 ```
 
+### CI & security checks
+
+Every pull request against `main` runs the test suites above plus CodeQL (Python,
+TypeScript, Java, and the workflows themselves), a gitleaks scan of the commit
+history, and dependency review. `main` is protected by a ruleset checked into
+[`.github/rulesets/`](.github/rulesets/) — see
+[`docs/BRANCH-PROTECTION.md`](docs/BRANCH-PROTECTION.md) for what it enforces and
+how to apply it. Report vulnerabilities privately per
+[`.github/SECURITY.md`](.github/SECURITY.md).
+
 ### Spring Boot engine bake-off
 
 `apps/spring-compare` is a small Spring Boot app that calls **Zen then Kogito** (via the FastAPI platform, or Kogito directly) and reports wall latency, decision agreement, and notes on ease of implementation / hot reload.

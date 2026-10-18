@@ -1,0 +1,65 @@
+name: Dependency review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The action needs the repository dependency graph, which is a repo-level
+      # setting no pull request can turn on. Probe the endpoint it calls so a
+      # missing prerequisite is reported as a warning instead of wedging a
+      # required status check that no change to this branch could ever turn green.
+      - name: Check for the dependency graph
+        id: graph
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if error="$(gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/compare/${BASE_SHA}...${HEAD_SHA}" --silent 2>&1)"; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            printf '%s\n' "$error"
+          fi
+
+      - name: Review dependency changes
+        if: steps.graph.outputs.available == 'true'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          # Commenting needs pull-requests: write, which fork PRs never get, so the
+          # findings go to the job summary instead.
+          comment-summary-in-pr: never
+
+      - name: Report that the dependency graph is unavailable
+        if: steps.graph.outputs.available != 'true'
+        run: |
+          echo "::warning title=Dependency review did not run::The dependency graph is unavailable, so dependency changes in this PR were not checked for known vulnerabilities. Enable Dependabot alerts under Settings > Code security, or run scripts/apply_branch_protection.sh."
+          {
+            echo '### Dependency review did not run'
+            echo
+            echo 'The repository dependency graph is unavailable, so this run could not check'
+            echo 'dependency changes against GitHub Advisory Database.'
+            echo
+            echo 'Enable Dependabot alerts under **Settings > Code security**, which also'
+            echo 'enables the dependency graph, or run scripts/apply_branch_protection.sh.'
+            echo 'This check enforces nothing until then.'
+          } >> "$GITHUB_STEP_SUMMARY"

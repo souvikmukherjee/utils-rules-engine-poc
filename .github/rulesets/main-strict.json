@@ -1,0 +1,65 @@
+{
+  "name": "main: protected (strict)",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": ["~DEFAULT_BRANCH"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "type": "required_linear_history"
+    },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": true,
+        "require_last_push_approval": true,
+        "required_review_thread_resolution": true,
+        "allowed_merge_methods": ["squash"]
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          { "context": "Python tests" },
+          { "context": "Web lint and build" },
+          { "context": "Java build (kogito)" },
+          { "context": "Java build (spring-compare)" },
+          { "context": "CodeQL analyze (actions)" },
+          { "context": "CodeQL analyze (javascript-typescript)" },
+          { "context": "CodeQL analyze (python)" },
+          { "context": "CodeQL analyze (java-kotlin)" },
+          { "context": "Gitleaks secret scan" },
+          { "context": "Dependency review" }
+        ]
+      }
+    },
+    {
+      "type": "code_scanning",
+      "parameters": {
+        "code_scanning_tools": [
+          {
+            "tool": "CodeQL",
+            "security_alerts_threshold": "high_or_higher",
+            "alerts_threshold": "errors"
+          }
+        ]
+      }
+    }
+  ]
+}
