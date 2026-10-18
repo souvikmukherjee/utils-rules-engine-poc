@@ -23,4 +23,4 @@ packages = ["src/rules_engine"]
 "src/rules_engine/samples/build_lounge_jdm.py" = "rules_engine/samples/build_lounge_jdm.py"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=9.1.1"]
